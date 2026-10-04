@@ -1,276 +1,116 @@
-const DEFAULT_CATEGORIES = [
-  {id:'food',name:'Jedlo',icon:'🍔',limit:270,type:'spend',keywords:['lidl','tesco','kaufland','billa','fresh','coop','mcdonald','kfc','burger','restaurant','restauracia','pizza']},
-  {id:'fuel',name:'Tankovanie',icon:'⛽',limit:100,type:'spend',keywords:['omv','shell','slovnaft','orlen','benzina']},
+const APP_VERSION='3.1';
+const DEFAULT_CATEGORIES=[
+  {id:'food',name:'Jedlo',icon:'🍔',limit:300,type:'spend',keywords:['lidl','tesco','kaufland','billa','fresh','coop','mcdonald','kfc','burger','restaurant','restauracia','pizza','obed','jedlo']},
+  {id:'fuel',name:'Tankovanie',icon:'⛽',limit:90,type:'spend',keywords:['omv','shell','slovnaft','orlen','benzina']},
   {id:'gym',name:'Fitko',icon:'🏋️',limit:35,type:'toggle',keywords:['gym','fitness','fitko']},
   {id:'fun',name:'Zábava',icon:'🎮',limit:90,type:'spend',keywords:['steam','playstation','xbox','cinema','kino','bar','pub']},
-  {id:'car',name:'Auto',icon:'🚗',limit:80,type:'toggle',keywords:['autodiel','servis','pneuservis','car wash','umyvarka']},
+  {id:'car',name:'Auto / rezerva',icon:'🚗',limit:80,type:'toggle',keywords:['autodiel','servis','pneuservis','car wash','umyvarka']},
   {id:'hygiene',name:'Hygiena / lekáreň',icon:'🧴',limit:45,type:'spend',keywords:['dm drogerie','101 drogerie','dr.max','benu','lekaren']},
   {id:'other',name:'Ostatné',icon:'🛍️',limit:30,type:'spend',keywords:[]}
 ];
-
-const DEFAULTS = { budget: 800, savings: 150, categories: DEFAULT_CATEGORIES };
-const $ = s => document.querySelector(s);
-const fmt = n => new Intl.NumberFormat('sk-SK',{style:'currency',currency:'EUR'}).format(Number(n||0));
-const monthKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
-
-function cloneDefaults(){
-  return JSON.parse(JSON.stringify(DEFAULTS));
-}
-
+const DEFAULT_STATE={
+  settings:{budget:800,savings:150,workLunchPrice:6,categories:DEFAULT_CATEGORIES},
+  transactions:[],monthlyFlags:{},shopping:{},merchantRules:{},version:APP_VERSION
+};
+const RECIPES=[
+  {n:'Kuracie prsia s ryžou a zeleninou',i:'🍗',c:3.6,k:650,p:52,ing:['200 g kuracích pŕs','90 g ryže','150 g mrazenej zeleniny','korenie + 1 ČL oleja'],s:['Ryžu uvar.','Kuracie nakrájaj, okoreň a opeč.','Pridaj zeleninu a podávaj s ryžou.']},
+  {n:'Kuracie prsia s pečenými zemiakmi',i:'🥔',c:3.4,k:620,p:50,ing:['200 g kuracích pŕs','350 g zemiakov','100 g šalátu','jogurtový dip'],s:['Zemiaky nakrájaj a upeč.','Kuracie opeč na panvici.','Podávaj so šalátom a dipom.']},
+  {n:'Morčacie cestoviny s paradajkou',i:'🍝',c:3.9,k:690,p:48,ing:['180 g morčacieho mäsa','100 g cestovín','150 g paradajkovej omáčky','20 g syra'],s:['Uvar cestoviny.','Mäso opeč a pridaj omáčku.','Zmiešaj a posyp syrom.']},
+  {n:'Kuracie burrito bowl',i:'🌯',c:4.1,k:720,p:51,ing:['180 g kuracích pŕs','80 g ryže','80 g fazule','kukurica + salsa'],s:['Uvar ryžu.','Opeč kuracie s paprikou.','Daj do misky s fazuľou, kukuricou a salsou.']},
+  {n:'Hovädzie s ryžou na ázijský spôsob',i:'🥩',c:5.2,k:700,p:46,ing:['180 g hovädzieho','90 g ryže','150 g zeleniny','sójová omáčka'],s:['Uvar ryžu.','Hovädzie prudko opeč.','Pridaj zeleninu a sójovú omáčku.']},
+  {n:'Kuracie kari s ryžou',i:'🍛',c:4.0,k:710,p:49,ing:['190 g kuracích pŕs','90 g ryže','100 ml light kokosového mlieka','kari + zelenina'],s:['Uvar ryžu.','Opeč kuracie s kari.','Pridaj kokosové mlieko a zeleninu, krátko povar.']},
+  {n:'Tuniakové cestoviny',i:'🐟',c:3.3,k:640,p:43,ing:['1 konzerva tuniaka','100 g cestovín','100 g paradajkovej omáčky','cibuľa'],s:['Uvar cestoviny.','Na panvici zohrej omáčku s tuniakom.','Zmiešaj s cestovinami.']},
+  {n:'Kuracie stir-fry s ryžou',i:'🥢',c:3.8,k:660,p:50,ing:['190 g kuracích pŕs','85 g ryže','200 g wok zeleniny','sójová omáčka'],s:['Uvar ryžu.','Kuracie opeč vo woku.','Pridaj zeleninu a omáčku.']},
+  {n:'Vajíčka, zemiaky a cottage',i:'🍳',c:2.8,k:600,p:38,ing:['3 vajcia','300 g zemiakov','150 g cottage','zelenina'],s:['Zemiaky uvar alebo upeč.','Priprav vajcia.','Podávaj s cottage a zeleninou.']},
+  {n:'Kurací wrap s jogurtovým dresingom',i:'🌮',c:3.7,k:610,p:47,ing:['170 g kuracích pŕs','2 tortilly','zelenina','grécky jogurt'],s:['Kuracie opeč.','Tortilly naplň mäsom a zeleninou.','Pridaj jogurtový dresing.']},
+  {n:'Kuracie rizoto',i:'🍚',c:3.5,k:650,p:46,ing:['180 g kuracích pŕs','90 g ryže','150 g hrášku a mrkvy','20 g parmezánu'],s:['Opeč kuracie.','Pridaj ryžu a zeleninu.','Dovar a na konci pridaj syr.']},
+  {n:'Mleté morčacie so zemiakovou kašou',i:'🥘',c:4.1,k:700,p:48,ing:['200 g morčacieho mletého','350 g zemiakov','trocha mlieka','uhorka alebo šalát'],s:['Uvar zemiaky a sprav kašu.','Mleté mäso opeč s korením.','Podávaj so šalátom.']},
+  {n:'Kuracie s kuskusom',i:'🥗',c:3.4,k:610,p:49,ing:['190 g kuracích pŕs','90 g kuskusu','paradajka + uhorka','citrón'],s:['Kuskus zalej horúcou vodou.','Kuracie opeč.','Zmiešaj zeleninu s kuskusom a pridaj mäso.']},
+  {n:'Losos so zemiakmi',i:'🐟',c:5.8,k:680,p:42,ing:['160 g lososa','320 g zemiakov','brokolica','citrón'],s:['Lososa upeč alebo opeč.','Zemiaky uvar.','Pridaj brokolicu a citrón.']},
+  {n:'Kuracie fajita s ryžou',i:'🌶️',c:3.9,k:680,p:50,ing:['190 g kuracích pŕs','85 g ryže','paprika + cibuľa','fajita korenie'],s:['Uvar ryžu.','Opeč kuracie s paprikou a cibuľou.','Ochut korením a podávaj.']},
+  {n:'Hovädzí burger bowl',i:'🍔',c:5.0,k:720,p:45,ing:['180 g hovädzieho mletého','300 g zemiakov','šalát + paradajka','jogurtový burger dresing'],s:['Zemiaky upeč.','Mäso opeč ako placku alebo rozdrobené.','Daj do misky so zeleninou a dresingom.']},
+  {n:'Kuracie pesto cestoviny',i:'🍝',c:4.2,k:730,p:50,ing:['180 g kuracích pŕs','100 g cestovín','20 g pesta','paradajky'],s:['Uvar cestoviny.','Kuracie opeč.','Zmiešaj s pestom a paradajkami.']},
+  {n:'Tuniaková ryža s vajíčkom',i:'🍚',c:3.2,k:630,p:41,ing:['1 konzerva tuniaka','85 g ryže','2 vajcia','kukurica'],s:['Uvar ryžu a vajcia.','Pridaj tuniaka a kukuricu.','Premiešaj a dochuť.']},
+  {n:'Kuracie s batatmi',i:'🍠',c:4.0,k:650,p:49,ing:['190 g kuracích pŕs','300 g batatov','zelené fazuľky','korenie'],s:['Bataty upeč.','Kuracie opeč.','Podávaj s fazuľkami.']},
+  {n:'Morčacie chilli s ryžou',i:'🌶️',c:4.3,k:720,p:50,ing:['180 g morčacieho mletého','80 g ryže','100 g fazule','paradajky + chilli'],s:['Uvar ryžu.','Mäso opeč.','Pridaj fazuľu, paradajky a chilli, povar.']},
+  {n:'Kuracie s gnocchi a špenátom',i:'🥬',c:4.4,k:710,p:47,ing:['180 g kuracích pŕs','250 g gnocchi','100 g špenátu','50 ml smotany light'],s:['Opeč kuracie.','Pridaj gnocchi a špenát.','Zjemni trochou smotany.']},
+  {n:'Proteínová omeleta so šunkou',i:'🍳',c:3.0,k:560,p:44,ing:['3 vajcia','80 g kvalitnej šunky','30 g syra','zelenina + pečivo'],s:['Vajcia rozšľahaj.','Pridaj šunku a syr.','Opeč a podávaj so zeleninou.']},
+  {n:'Kuracie teriyaki s ryžou',i:'🥢',c:4.0,k:690,p:49,ing:['190 g kuracích pŕs','90 g ryže','brokolica','teriyaki omáčka'],s:['Uvar ryžu.','Kuracie opeč.','Pridaj brokolicu a trochu teriyaki omáčky.']},
+  {n:'Bravčová panenka so zemiakmi',i:'🥩',c:4.8,k:670,p:47,ing:['180 g bravčovej panenky','330 g zemiakov','šalát','horčicový dip'],s:['Zemiaky upeč.','Panenku opeč dohotova.','Podávaj so šalátom a dipom.']},
+  {n:'Kurací šalát s pečenými zemiakmi',i:'🥗',c:3.7,k:590,p:48,ing:['180 g kuracích pŕs','250 g zemiakov','veľký šalát','jogurtový dressing'],s:['Zemiaky upeč.','Kuracie opeč.','Všetko spoj so šalátom a dressingom.']},
+  {n:'Cestoviny bolognese fitness',i:'🍝',c:4.4,k:740,p:49,ing:['180 g chudého mletého mäsa','100 g cestovín','150 g paradajkovej omáčky','20 g parmezánu'],s:['Uvar cestoviny.','Mäso opeč a pridaj omáčku.','Podávaj s parmezánom.']},
+  {n:'Kuracie s ryžovými rezancami',i:'🍜',c:4.0,k:660,p:47,ing:['180 g kuracích pŕs','100 g ryžových rezancov','wok zelenina','sójová omáčka'],s:['Rezance priprav podľa návodu.','Kuracie opeč so zeleninou.','Pridaj rezance a dochuť.']},
+  {n:'Tortilla pizza s kuracím',i:'🍕',c:3.5,k:580,p:45,ing:['2 tortilly','150 g kuracích pŕs','80 g paradajkovej omáčky','60 g light mozzarelly'],s:['Tortilly potri omáčkou.','Pridaj kuracie a syr.','Zapeč 8–10 minút.']},
+  {n:'Kuracie so šošovicou',i:'🥣',c:3.3,k:650,p:52,ing:['170 g kuracích pŕs','120 g uvarenej šošovice','zelenina','horčica + korenie'],s:['Kuracie opeč.','Šošovicu zohrej so zeleninou.','Spoj a dochuť.']},
+  {n:'Hovädzie tacos',i:'🌮',c:4.9,k:700,p:44,ing:['170 g hovädzieho mletého','3 malé tortilly','šalát + paradajka','salsa'],s:['Mäso opeč s taco korením.','Napln tortilly.','Pridaj zeleninu a salsu.']},
+  {n:'Kuracie s bulgurom a fetou',i:'🥗',c:3.9,k:640,p:49,ing:['180 g kuracích pŕs','90 g bulguru','30 g feta syra','paradajka + uhorka'],s:['Uvar bulgur.','Kuracie opeč.','Zmiešaj so zeleninou a fetou.']}
+];
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const fmt=n=>new Intl.NumberFormat('sk-SK',{style:'currency',currency:'EUR'}).format(Number(n||0));
+const parseNum=v=>Number(String(v??'').replace(',','.'))||0;
+const monthKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const esc=s=>String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function migrate(raw){
-  const defs = cloneDefaults();
-  const base = raw && typeof raw === 'object' ? raw : {};
-  const settings = base.settings || {};
-  const categories = Array.isArray(settings.categories) ? settings.categories : defs.categories;
-  const mergedCategories = defs.categories.map(def => {
-    const found = categories.find(c => c.id === def.id) || {};
-    return {...def, ...found, keywords:def.keywords};
-  });
-  return {
-    settings: {
-      budget: Number(settings.budget ?? defs.budget) || defs.budget,
-      savings: Number(settings.savings ?? defs.savings) || 0,
-      categories: mergedCategories
-    },
-    transactions: Array.isArray(base.transactions) ? base.transactions : [],
-    monthlyFlags: base.monthlyFlags && typeof base.monthlyFlags === 'object' ? base.monthlyFlags : {}
-  };
+  const r=raw&&typeof raw==='object'?raw:{}; const oldCats=r.settings?.categories||DEFAULT_CATEGORIES;
+  const cats=DEFAULT_CATEGORIES.map(d=>({...d,...(oldCats.find(c=>c.id===d.id)||{}),keywords:d.keywords}));
+  (oldCats||[]).filter(c=>!DEFAULT_CATEGORIES.some(d=>d.id===c.id)).forEach(c=>cats.push(c));
+  return {settings:{budget:Number(r.settings?.budget??800)||800,savings:Number(r.settings?.savings??150)||0,workLunchPrice:Number(r.settings?.workLunchPrice??6)||6,categories:cats},transactions:Array.isArray(r.transactions)?r.transactions:[],monthlyFlags:r.monthlyFlags||{},shopping:r.shopping||{},merchantRules:r.merchantRules||{},version:APP_VERSION};
 }
-
-const store = {
-  get(){
-    try{ return migrate(JSON.parse(localStorage.getItem('money800') || 'null')); }
-    catch{ return migrate(null); }
-  },
-  set(v){ localStorage.setItem('money800', JSON.stringify(v)); }
-};
-
-let state = store.get();
-
-function save(){ store.set(state); }
-function getCategories(){ return state.settings.categories; }
-function catById(id){ return getCategories().find(c=>c.id===id) || getCategories().at(-1); }
-function txThisMonth(){ const key = monthKey(); return state.transactions.filter(t => t.month === key); }
-function daysLeft(){ const d = new Date(); const last = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); return Math.max(1, last - d.getDate() + 1); }
-function getMonthFlags(){ const key = monthKey(); if(!state.monthlyFlags[key]) state.monthlyFlags[key] = {}; return state.monthlyFlags[key]; }
-function isCategoryPaid(catId){ return !!getMonthFlags()[catId]; }
-function setCategoryPaid(catId, paid){ getMonthFlags()[catId] = !!paid; save(); }
-function autoCategory(merchant=''){
-  const m = merchant.toLowerCase();
-  return getCategories().find(c => (c.keywords || []).some(k => m.includes(k)))?.id || 'other';
+const store={get(){try{return migrate(JSON.parse(localStorage.getItem('money800')||'null'))}catch{return clone(DEFAULT_STATE)}},set(v){localStorage.setItem('money800',JSON.stringify(v))}};
+let state=store.get(), recipeOffset=0, currentFilter='all', currentEditTxId=null;
+function save(){store.set(state)} function cats(){return state.settings.categories} function cat(id){return cats().find(c=>c.id===id)||cats().at(-1)}
+function txMonth(){return state.transactions.filter(t=>t.month===monthKey())}
+function monthFlags(){if(!state.monthlyFlags[monthKey()])state.monthlyFlags[monthKey()]={};return state.monthlyFlags[monthKey()]}
+function isPaid(id){return !!monthFlags()[id]}
+function txSpent(id){return txMonth().filter(t=>t.category===id).reduce((s,t)=>s+Number(t.amount||0),0)}
+function catSpent(id){const c=cat(id),actual=txSpent(id);return c?.type==='toggle'&&isPaid(id)?Math.max(actual,Number(c.limit||0)):actual}
+function totalSpent(){return cats().reduce((s,c)=>s+catSpent(c.id),0)}
+function daysInMonth(){const d=new Date();return new Date(d.getFullYear(),d.getMonth()+1,0).getDate()} function dayNum(){return new Date().getDate()} function daysLeft(){return Math.max(1,daysInMonth()-dayNum()+1)}
+function merchantKey(merchant=''){return String(merchant).toLowerCase().replace(/[^a-z0-9áäčďéíĺľňóôŕšťúýž ]/gi,' ').replace(/\s+/g,' ').trim()}
+function autoCat(merchant=''){const m=merchant.toLowerCase(),rule=state.merchantRules?.[merchantKey(merchant)];if(rule&&cats().some(c=>c.id===rule))return rule;return cats().find(c=>(c.keywords||[]).some(k=>m.includes(k)))?.id||'other'}
+function fingerprint(amount,merchant,text=''){return `${Number(amount).toFixed(2)}|${String(merchant).toLowerCase().replace(/\s+/g,' ').trim()}|${text.slice(0,80).toLowerCase().replace(/\s+/g,' ')}`}
+function addTx(amount,merchant,category,source='manual',fp=''){const a=Number(amount);if(!a||!merchant)return false;const f=fp||fingerprint(a,merchant);if(state.transactions.some(t=>t.fingerprint&&t.fingerprint===f)){toast('Táto platba už je pridaná.');return false}state.transactions.push({id:crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`,amount:a,merchant,category:category||autoCat(merchant),source,ts:Date.now(),month:monthKey(),fingerprint:f});save();render();toast('Výdavok pridaný.');return true}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),1800)}
+function navigate(name){$$('.page').forEach(p=>p.classList.toggle('active',p.dataset.page===name));$$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.nav===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='food')renderFood();if(name==='settings')renderSettings();if(name==='expenses')renderExpenses()}
+function projection(){const elapsed=Math.max(1,dayNum()), variable=cats().filter(c=>c.type!=='toggle').reduce((s,c)=>s+txSpent(c.id),0), togglesPaid=cats().filter(c=>c.type==='toggle').reduce((s,c)=>s+catSpent(c.id),0), unpaidPlans=cats().filter(c=>c.type==='toggle'&&!isPaid(c.id)).reduce((s,c)=>s+Number(c.limit||0),0);return (variable/elapsed)*daysInMonth()+togglesPaid+unpaidPlans}
+function renderOverview(){
+  const budget=state.settings.budget,spent=totalSpent(),remaining=budget-spent,free=budget-state.settings.savings-spent;
+  $('#monthLabel').textContent=new Intl.DateTimeFormat('sk-SK',{month:'long',year:'numeric'}).format(new Date());
+  $('#remainingAmount').textContent=fmt(remaining);$('#spentPill').textContent=`Minuté ${fmt(spent)}`;$('#txCountPill').textContent=`${txMonth().length} platieb`;$('#budgetProgress').style.width=`${Math.min(100,Math.max(0,spent/Math.max(1,budget)*100))}%`;$('#dailyLimit').textContent=fmt(Math.max(0,free)/daysLeft());$('#savingsGoal').textContent=fmt(state.settings.savings);$('#freeAfterSavings').textContent=fmt(free);
+  const proj=projection(), pct=Math.round(proj/Math.max(1,budget)*100);$('#forecastValue').textContent=fmt(proj);$('#forecastPct').textContent=`${pct}%`;$('#forecastRing').style.background=`conic-gradient(${pct>100?'var(--danger)':pct>90?'var(--warn)':'var(--accent)'} ${Math.min(360,pct*3.6)}deg,rgba(255,255,255,.08) 0deg)`;$('#forecastCopy').textContent=proj>budget?`Pri tomto tempe môžeš prekročiť rozpočet asi o ${fmt(proj-budget)}.`:`Pri tomto tempe by ti mohlo zostať približne ${fmt(budget-proj)}.`;
+  $('#categoryList').innerHTML=cats().map(c=>categoryCard(c)).join('');bindToggleButtons();
+  const r=getRecipe();$('#recipeActionText').textContent=`${r.n} · ~${fmt(r.c)}`;
 }
-function spentByCategory(catId){
-  const cat = catById(catId);
-  const txSpent = txThisMonth().filter(t => t.category === catId).reduce((s,t)=>s + Number(t.amount||0), 0);
-  const toggleSpent = cat.type === 'toggle' && isCategoryPaid(catId) ? Number(cat.limit || 0) : 0;
-  return txSpent + toggleSpent;
-}
-function spentTotal(){
-  return getCategories().reduce((sum, cat) => sum + spentByCategory(cat.id), 0);
-}
-function escapeHtml(s){
-  return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-}
-function addTx(amount, merchant, category){
-  state.transactions.push({
-    id: crypto.randomUUID?.() || Date.now().toString(),
-    amount: Number(amount),
-    merchant,
-    category: category || autoCategory(merchant),
-    ts: Date.now(),
-    month: monthKey()
-  });
-  save();
-  render();
-}
-function parseAmount(txt){
-  const patterns = [/(-?\d{1,5}[\.,]\d{2})\s*(?:EUR|€)/i,/(?:EUR|€)\s*(-?\d{1,5}[\.,]\d{2})/i,/(-?\d{1,5})\s*(?:EUR|€)/i];
-  for(const p of patterns){ const m = txt.match(p); if(m) return Math.abs(Number(m[1].replace(',','.'))); }
-  return null;
-}
-function parseMerchant(txt){
-  const candidates = [/obchodn(?:í|i)k(?:a|ovi)?\s*[:\-]?\s*([^\n,;.]+)/i,/u\s+([^\n,;.]{2,40})/i,/v\s+([^\n,;.]{2,40})/i,/merchant\s*[:\-]?\s*([^\n,;.]+)/i];
-  for(const p of candidates){ const m = txt.match(p); if(m) return m[1].trim(); }
-  const lines = txt.split(/\n+/).map(s=>s.trim()).filter(Boolean);
-  return lines.find(l => !/eur|€|tatra|banka|platba|karta/i.test(l)) || 'Neznámy obchod';
-}
-
-function renderCategoryEditor(){
-  $('#catsEditor').innerHTML = getCategories().map(cat => `
-    <div class="cat-edit-card">
-      <div class="cat-edit-head"><span class="cat-icon">${cat.icon}</span><span>${escapeHtml(cat.name)}</span></div>
-      <div class="cat-edit-grid">
-        <label class="cat-edit-row">Názov
-          <input data-cat-field="name" data-cat-id="${cat.id}" value="${escapeHtml(cat.name)}" />
-        </label>
-        <label class="cat-edit-row">Limit (€)
-          <input data-cat-field="limit" data-cat-id="${cat.id}" inputmode="decimal" value="${Number(cat.limit || 0).toString().replace('.',',')}" />
-        </label>
-        <label class="cat-edit-row">Režim
-          <select data-cat-field="type" data-cat-id="${cat.id}">
-            <option value="spend" ${cat.type==='spend'?'selected':''}>Bežné výdavky</option>
-            <option value="toggle" ${cat.type==='toggle'?'selected':''}>Prepínač: iba Zaplatené / Nezaplatené</option>
-          </select>
-        </label>
-        <div class="cat-edit-row">
-          <div>Stav tento mesiac</div>
-          <div class="toggle-status ${isCategoryPaid(cat.id)?'paid':''}">${cat.type==='toggle' ? (isCategoryPaid(cat.id) ? 'Zaplatené' : 'Nezaplatené') : 'Sleduje výdavky'}</div>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function render(){
-  const txs = txThisMonth().sort((a,b)=>b.ts-a.ts);
-  const budget = Number(state.settings.budget || DEFAULTS.budget);
-  const sav = Number(state.settings.savings || 0);
-  const spent = spentTotal();
-  const remaining = budget - spent;
-  const free = budget - sav - spent;
-
-  $('#monthLabel').textContent = new Intl.DateTimeFormat('sk-SK',{month:'long',year:'numeric'}).format(new Date());
-  $('#remainingAmount').textContent = fmt(remaining);
-  $('#spentPill').textContent = `Minuté ${fmt(spent)}`;
-  $('#txCountPill').textContent = `${txs.length} platieb`;
-  $('#budgetProgress').style.width = `${Math.min(100, Math.max(0, (spent / Math.max(1,budget)) * 100))}%`;
-  $('#dailyLimit').textContent = fmt(Math.max(0, free) / daysLeft());
-  $('#savingsGoal').textContent = fmt(sav);
-  $('#freeAfterSavings').textContent = fmt(free);
-
-  const catHtml = getCategories().map(cat => {
-    const spentCat = spentByCategory(cat.id);
-    const limit = Number(cat.limit || 0);
-    const pct = limit > 0 ? Math.min(100, (spentCat / limit) * 100) : 0;
-    const paid = cat.type === 'toggle' && isCategoryPaid(cat.id);
-    const barClass = paid || pct >= 100 ? 'danger' : pct >= 80 ? 'warn' : '';
-    const remain = Math.max(0, limit - spentCat);
-    return `
-      <div class="category">
-        <div class="category-top">
-          <div class="category-left">
-            <div class="cat-icon">${cat.icon}</div>
-            <div>
-              <div class="category-name">${escapeHtml(cat.name)}</div>
-              <div class="category-meta">${fmt(spentCat)} z ${fmt(limit)}</div>
-            </div>
-          </div>
-          <div class="category-right">
-            <strong>${Math.round(pct)}%</strong>
-            <div class="remain">${remain > 0 ? `${fmt(remain)} ostáva` : 'Limit vyčerpaný'}</div>
-          </div>
-        </div>
-        <div class="bar"><div class="${barClass}" style="width:${pct}%"></div></div>
-        <div class="category-footer">
-          <div class="category-badge">${cat.type === 'toggle' ? (paid ? '🔴 Zaplatené' : '⚪ Nezaplatené') : '🟢 Sledovanie výdavkov'}</div>
-          ${cat.type === 'toggle' ? `<button class="quick-btn ${paid ? 'paid' : ''}" data-toggle-paid="${cat.id}">${paid ? 'Zrušiť platbu' : 'Označiť zaplatené'}</button>` : ''}
-        </div>
-      </div>`;
-  }).join('');
-  $('#categoryList').innerHTML = catHtml;
-
-  $('#transactions').innerHTML = txs.map(t => {
-    const c = catById(t.category);
-    return `<div class="tx"><div class="tx-left"><div class="tx-icon">${c.icon}</div><div><div class="tx-title">${escapeHtml(t.merchant)}</div><div class="tx-sub">${escapeHtml(c.name)} · ${new Date(t.ts).toLocaleDateString('sk-SK')}</div></div></div><div class="tx-amt">−${fmt(t.amount)}</div></div>`;
-  }).join('');
-  $('#emptyState').style.display = txs.length ? 'none' : 'block';
-  $('#categoryInput').innerHTML = getCategories().map(c => `<option value="${c.id}">${c.icon} ${escapeHtml(c.name)}</option>`).join('');
-  $('#budgetInput').value = budget.toString().replace('.',',');
-  $('#savingsInput').value = sav.toString().replace('.',',');
-  renderCategoryEditor();
-
-  document.querySelectorAll('[data-toggle-paid]').forEach(btn => {
-    btn.onclick = () => {
-      const id = btn.dataset.togglePaid;
-      setCategoryPaid(id, !isCategoryPaid(id));
-      render();
-    };
-  });
-}
-
-$('#addBtn').onclick = () => $('#addDialog').showModal();
-$('#settingsBtn').onclick = () => $('#settingsDialog').showModal();
-$('#editCatsBtn').onclick = () => { renderCategoryEditor(); $('#catsDialog').showModal(); };
-$('#merchantInput').addEventListener('input', e => $('#categoryInput').value = autoCategory(e.target.value));
-
-$('#saveTxBtn').onclick = e => {
-  e.preventDefault();
-  const a = Number($('#amountInput').value.replace(',','.'));
-  const m = $('#merchantInput').value.trim();
-  if(!a || !m) return;
-  addTx(a, m, $('#categoryInput').value);
-  $('#addForm').reset();
-  $('#addDialog').close();
-};
-
-$('#saveSettingsBtn').onclick = e => {
-  e.preventDefault();
-  state.settings.budget = Number($('#budgetInput').value.replace(',','.')) || DEFAULTS.budget;
-  state.settings.savings = Number($('#savingsInput').value.replace(',','.')) || 0;
-  save();
-  render();
-  $('#settingsDialog').close();
-};
-
-$('#saveCatsBtn').onclick = e => {
-  e.preventDefault();
-  state.settings.categories = getCategories().map(cat => {
-    const name = document.querySelector(`[data-cat-field="name"][data-cat-id="${cat.id}"]`)?.value?.trim() || cat.name;
-    const limitRaw = document.querySelector(`[data-cat-field="limit"][data-cat-id="${cat.id}"]`)?.value || String(cat.limit);
-    const type = document.querySelector(`[data-cat-field="type"][data-cat-id="${cat.id}"]`)?.value || cat.type;
-    return {...cat, name, limit:Number(limitRaw.replace(',','.')) || 0, type};
-  });
-  save();
-  render();
-  $('#catsDialog').close();
-};
-
-$('#resetCatsBtn').onclick = () => {
-  if(!confirm('Obnoviť pôvodné kategórie a limity?')) return;
-  state.settings.categories = cloneDefaults().categories;
-  const flags = getMonthFlags();
-  Object.keys(flags).forEach(k => delete flags[k]);
-  save();
-  renderCategoryEditor();
-  render();
-};
-
-$('#testBtn').onclick = () => {
-  const samples = [
-    ['LIDL Slovensko', 18.47],
-    ['OMV Kosice', 40],
-    ['McDonald’s', 9.80]
-  ];
-  const s = samples[Math.floor(Math.random()*samples.length)];
-  addTx(s[1], s[0], autoCategory(s[0]));
-};
-
-$('#clearBtn').onclick = () => {
-  if(confirm('Vymazať všetky transakcie z tohto zariadenia?')){
-    state.transactions = [];
-    state.monthlyFlags = {};
-    save();
-    render();
-  }
-};
-
-$('#parseBtn').onclick = () => {
-  const txt = $('#emailText').value.trim();
-  const amount = parseAmount(txt);
-  const merchant = parseMerchant(txt);
-  if(!txt){ $('#parseResult').textContent = 'Vlož text e-mailu.'; return; }
-  if(!amount){ $('#parseResult').textContent = 'Suma sa zatiaľ nedala rozpoznať — parser doladíme podľa prvého reálneho B-mailu.'; return; }
-  const cat = autoCategory(merchant);
-  $('#parseResult').innerHTML = `Rozpoznané: <strong>${fmt(amount)}</strong> · ${escapeHtml(merchant)} · ${escapeHtml(catById(cat).name)} <button id="importParsed" class="link-btn">Pridať</button>`;
-  setTimeout(() => {
-    const b = $('#importParsed');
-    if(b) b.onclick = () => {
-      addTx(amount, merchant, cat);
-      $('#emailText').value = '';
-      $('#parseResult').textContent = 'Pridané.';
-    };
-  }, 0);
-};
-
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
-render();
+function categoryCard(c){const sp=catSpent(c.id),lim=Number(c.limit||0),pct=lim?Math.min(100,sp/lim*100):0,paid=c.type==='toggle'&&isPaid(c.id),warn=pct>=100?'danger':pct>=75?'warn':'';let badge='V poriadku';if(pct>=100)badge='Limit vyčerpaný';else if(pct>=90)badge='Pozor: 90%+';else if(pct>=75)badge='Pozor: 75%+';if(c.type==='toggle')badge=paid?'🔴 Zaplatené':'⚪ Nezaplatené';return `<div class="category"><div class="category-top"><div class="category-left"><div class="cat-icon">${esc(c.icon)}</div><div><div class="category-name">${esc(c.name)}</div><div class="category-meta">${fmt(sp)} z ${fmt(lim)}</div></div></div><div class="category-right"><strong>${Math.round(pct)}%</strong><div class="remain">${fmt(Math.max(0,lim-sp))} ostáva</div></div></div><div class="bar"><div class="${warn}" style="width:${pct}%"></div></div><div class="category-footer"><span class="category-badge">${badge}</span>${c.type==='toggle'?`<button class="quick-btn ${paid?'paid':''}" data-paid="${c.id}">${paid?'Zrušiť':'Označiť zaplatené'}</button>`:''}</div></div>`}
+function bindToggleButtons(){$$('[data-paid]').forEach(b=>b.onclick=()=>{monthFlags()[b.dataset.paid]=!isPaid(b.dataset.paid);save();render();toast(isPaid(b.dataset.paid)?'Označené ako zaplatené.':'Platba zrušená.')})}
+function openEditTx(id){const t=state.transactions.find(x=>x.id===id);if(!t)return;currentEditTxId=id;$('#editTxAmount').value=String(t.amount).replace('.',',');$('#editTxMerchant').value=t.merchant;$('#editTxCategory').innerHTML=cats().map(c=>`<option value="${c.id}" ${c.id===t.category?'selected':''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('');$('#editTxRemember').checked=false;$('#editTxSource').textContent=`Zdroj: ${t.source||'manual'} · ${new Date(t.ts).toLocaleString('sk-SK')}`;$('#editTxDialog').showModal()}
+function renderExpenses(){const list=currentFilter==='all'?txMonth():txMonth().filter(t=>t.category===currentFilter);$('#txCategoryFilter').innerHTML=`<option value="all">Všetky kategórie</option>`+cats().map(c=>`<option value="${c.id}" ${currentFilter===c.id?'selected':''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('');$('#expenseSummary').textContent=`Zobrazené: ${list.length} · spolu ${fmt(list.reduce((s,t)=>s+t.amount,0))} · ťukni na Upraviť pri platbe`;$('#emptyState').style.display=list.length?'none':'block';$('#transactions').innerHTML=list.sort((a,b)=>b.ts-a.ts).map(t=>{const c=cat(t.category);return `<div class="tx"><div class="tx-left"><div class="tx-icon">${esc(c.icon)}</div><div><div class="tx-title">${esc(t.merchant)}</div><div class="tx-sub">${esc(c.name)} · ${new Date(t.ts).toLocaleDateString('sk-SK')} · ${esc(t.source||'manual')}</div></div></div><div class="tx-right"><span class="tx-amt">−${fmt(t.amount)}</span><button class="edit-btn" data-edit-tx="${t.id}">Upraviť</button><button class="delete-btn" data-del="${t.id}">✕</button></div></div>`}).join('');$$('[data-edit-tx]').forEach(b=>b.onclick=()=>openEditTx(b.dataset.editTx));$$('[data-del]').forEach(b=>b.onclick=()=>{state.transactions=state.transactions.filter(t=>t.id!==b.dataset.del);save();render();toast('Výdavok vymazaný.')})}
+function dayOfYear(){const n=new Date(),start=new Date(n.getFullYear(),0,0);return Math.floor((n-start)/86400000)}
+function getRecipe(){let idx=(dayOfYear()+recipeOffset)%RECIPES.length;if(idx<0)idx+=RECIPES.length;return RECIPES[idx]}
+function renderFood(){const fc=cat('food')||{limit:0},spent=catSpent('food'),remain=Math.max(0,Number(fc.limit||0)-spent),daily=remain/daysLeft(),r=getRecipe();$('#foodRemaining').textContent=fmt(remain);$('#foodDaily').textContent=fmt(daily);$('#foodSpent').textContent=fmt(spent);$('#foodDailyBadge').textContent=`${fmt(daily)}/deň`;$('#recipeIcon').textContent=r.i;$('#recipeName').textContent=r.n;$('#recipeMacros').textContent=`~${fmt(r.c)} · ${r.k} kcal · ${r.p} g bielkovín`;$('#recipeIngredients').innerHTML=r.ing.map(x=>`<li>${esc(x)}</li>`).join('');$('#recipeSteps').innerHTML=r.s.map(x=>`<li>${esc(x)}</li>`).join('');const fit=$('#recipeFitBadge');fit.textContent=r.c<=daily||daily===0?'V dennom limite':'Nad dnešný limit';fit.className=`fit-badge ${r.c<=daily||daily===0?'good':'bad'}`;$('#workLunchBtn').textContent=`Pridať ${fmt(state.settings.workLunchPrice)}`;renderShopping(r)}
+function shoppingKey(){return `${monthKey()}|${dayOfYear()+recipeOffset}`}
+function renderShopping(r){const key=shoppingKey();if(!state.shopping[key])state.shopping[key]={};$('#shoppingList').innerHTML=r.ing.map((x,i)=>`<label class="shopping-item ${state.shopping[key][i]?'checked':''}"><input type="checkbox" data-shop="${i}" ${state.shopping[key][i]?'checked':''}><span>${esc(x)}</span></label>`).join('');$$('[data-shop]').forEach(ch=>ch.onchange=()=>{state.shopping[key][ch.dataset.shop]=ch.checked;save();renderShopping(r)})}
+function parseAmount(txt){for(const p of [/(-?\d{1,5}[\.,]\d{2})\s*(?:EUR|€)/i,/(?:EUR|€)\s*(-?\d{1,5}[\.,]\d{2})/i,/(-?\d{1,5})\s*(?:EUR|€)/i]){const m=txt.match(p);if(m)return Math.abs(Number(m[1].replace(',','.')))}return null}
+function parseMerchant(txt){for(const p of [/obchodn(?:í|i)k(?:a|ovi)?\s*[:\-]?\s*([^\n,;.]+)/i,/merchant\s*[:\-]?\s*([^\n,;.]+)/i,/miesto\s*[:\-]?\s*([^\n,;.]+)/i,/v\s+([A-Z0-9][^\n,;]{2,40})/i]){const m=txt.match(p);if(m)return m[1].trim()}const lines=txt.split(/\n+/).map(s=>s.trim()).filter(Boolean);return lines.find(l=>!/eur|€|tatra|banka|platba|karta|debet/i.test(l))||'Neznámy obchod'}
+function showParsed(txt,autoImport=false){const a=parseAmount(txt),m=parseMerchant(txt);if(!txt){$('#parseResult').textContent='Vlož text e-mailu.';return}if(!a){$('#parseResult').textContent='Suma sa nedala rozpoznať. Keď dostaneme skutočný B-mail, parser upravíme.';return}const c=autoCat(m),fp=fingerprint(a,m,txt),duplicate=state.transactions.some(t=>t.fingerprint===fp);$('#parseResult').innerHTML=`<div class="parse-preview"><b>${duplicate?'⚠️ Už pridané':'✅ Rozpoznané'}</b><br>${fmt(a)} · ${esc(m)} · ${esc(cat(c).name)}${duplicate?'':`<br><button id="importParsed" class="primary compact" style="margin-top:10px">Pridať platbu</button>`}</div>`;if(autoImport&&!duplicate){addTx(a,m,c,'Tatra B-mail test',fp);return}setTimeout(()=>{$('#importParsed')?.addEventListener('click',()=>addTx(a,m,c,'Tatra B-mail',fp))},0)}
+function testEmail(){const samples=[`Tatra banka B-mail\nPlatba kartou: 18,47 EUR\nObchodník: LIDL SLOVENSKO\nStav: autorizovaná`, `Tatra banka B-mail\nDebetná transakcia 40,00 EUR\nObchodník: OMV KOSICE\nPlatba kartou`, `Tatra banka B-mail\nPlatba 9,80 EUR\nObchodník: MCDONALD'S\nKarta`];return samples[Math.floor(Math.random()*samples.length)]}
+function renderSettings(){const b=state.settings;$('#budgetInput').value=String(b.budget).replace('.',',');$('#savingsInput').value=String(b.savings).replace('.',',');$('#workLunchInput').value=String(b.workLunchPrice).replace('.',',');renderCategoryEditor();updateBudgetSum()}
+function renderCategoryEditor(){$('#categoryEditor').innerHTML=cats().map((c,idx)=>`<div class="cat-edit-card"><div class="cat-edit-head"><div class="cat-edit-title"><span>${esc(c.icon)}</span><span>${esc(c.name)}</span></div>${!DEFAULT_CATEGORIES.some(d=>d.id===c.id)?`<button class="mini-delete" data-delcat="${c.id}">Vymazať</button>`:''}</div><div class="cat-edit-grid"><label>Názov<input data-cat-name="${c.id}" value="${esc(c.name)}"></label><label>Limit (€)<input inputmode="decimal" data-cat-limit="${c.id}" value="${String(c.limit).replace('.',',')}"></label><label>Režim<select data-cat-type="${c.id}"><option value="spend" ${c.type==='spend'?'selected':''}>Bežné výdavky</option><option value="toggle" ${c.type==='toggle'?'selected':''}>Zaplatené / nezaplatené</option></select></label></div></div>`).join('');$$('[data-cat-limit]').forEach(i=>i.oninput=updateBudgetSum);$$('[data-delcat]').forEach(b=>b.onclick=()=>{state.settings.categories=state.settings.categories.filter(c=>c.id!==b.dataset.delcat);save();renderSettings();toast('Kategória vymazaná.')})}
+function updateBudgetSum(){const sum=cats().reduce((s,c)=>s+parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value??c.limit),0),budget=parseNum($('#budgetInput')?.value||state.settings.budget),el=$('#categoryBudgetSum');el.textContent=`Súčet limitov kategórií: ${fmt(sum)} z celkového rozpočtu ${fmt(budget)}.`;el.style.color=sum>budget?'var(--warn)':'var(--muted)'}
+function render(){renderOverview();renderExpenses();renderFood();renderSettings()}
+$$('[data-nav]').forEach(b=>b.onclick=()=>navigate(b.dataset.nav));$('#quickSettingsBtn').onclick=()=>navigate('settings');$('#overviewAddBtn').onclick=$('#expensesAddBtn').onclick=()=>$('#addDialog').showModal();
+$('#merchantInput').oninput=e=>$('#categoryInput').value=autoCat(e.target.value);$('#saveTxBtn').onclick=e=>{e.preventDefault();const a=parseNum($('#amountInput').value),m=$('#merchantInput').value.trim();if(!a||!m)return;addTx(a,m,$('#categoryInput').value);$('#addForm').reset();$('#addDialog').close()};
+$('#txCategoryFilter').onchange=e=>{currentFilter=e.target.value;renderExpenses()};$('#clearTxBtn').onclick=()=>{if(confirm('Vymazať všetky transakcie za všetky mesiace?')){state.transactions=[];save();render();toast('Transakcie vymazané.')}};
+$('#editTxSave').onclick=e=>{e.preventDefault();const t=state.transactions.find(x=>x.id===currentEditTxId);if(!t)return;const amount=parseNum($('#editTxAmount').value),merchant=$('#editTxMerchant').value.trim(),category=$('#editTxCategory').value;if(!amount||!merchant)return;t.amount=amount;t.merchant=merchant;t.category=category;if($('#editTxRemember').checked)state.merchantRules[merchantKey(merchant)]=category;save();$('#editTxDialog').close();render();toast($('#editTxRemember').checked?'Transakcia opravená a pravidlo zapamätané.':'Transakcia opravená.')};
+$('#editTxDelete').onclick=()=>{if(!currentEditTxId)return;if(confirm('Vymazať túto transakciu?')){state.transactions=state.transactions.filter(t=>t.id!==currentEditTxId);save();$('#editTxDialog').close();render();toast('Transakcia vymazaná.')}};
+$('#prevRecipeBtn').onclick=()=>{recipeOffset--;renderFood()};$('#nextRecipeBtn').onclick=()=>{recipeOffset++;renderFood()};$('#addRecipeCostBtn').onclick=()=>{const r=getRecipe();addTx(r.c,r.n,'food','recept')};$('#workLunchBtn').onclick=()=>addTx(state.settings.workLunchPrice,'Obed v práci','food','rýchle pridanie');$('#resetShoppingBtn').onclick=()=>{state.shopping[shoppingKey()]={};save();renderFood()};
+$('#makeTestEmailBtn').onclick=()=>{$('#emailText').value=testEmail();showParsed($('#emailText').value)};$('#testAndImportBtn').onclick=()=>{const t=testEmail();$('#emailText').value=t;showParsed(t,true)};$('#parseBtn').onclick=()=>showParsed($('#emailText').value.trim());
+$('#saveMainSettingsBtn').onclick=()=>{state.settings.budget=parseNum($('#budgetInput').value)||800;state.settings.savings=parseNum($('#savingsInput').value);state.settings.workLunchPrice=parseNum($('#workLunchInput').value)||6;save();render();toast('Nastavenia uložené.')};$('#budgetInput').oninput=updateBudgetSum;
+$('#saveCategoriesBtn').onclick=()=>{state.settings.categories=cats().map(c=>({...c,name:document.querySelector(`[data-cat-name="${c.id}"]`)?.value.trim()||c.name,limit:parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value),type:document.querySelector(`[data-cat-type="${c.id}"]`)?.value||c.type}));save();render();toast('Limity kategórií uložené.')};
+$('#addCategoryBtn').onclick=()=>$('#categoryDialog').showModal();$('#createCategoryBtn').onclick=e=>{e.preventDefault();const name=$('#newCatName').value.trim(),limit=parseNum($('#newCatLimit').value);if(!name||!limit)return;const id=`custom_${Date.now()}`;state.settings.categories.push({id,name,icon:$('#newCatIcon').value.trim()||'💳',limit,type:$('#newCatType').value,keywords:[]});save();$('#categoryForm').reset();$('#newCatIcon').value='💳';$('#categoryDialog').close();render();toast('Kategória pridaná.')};
+$('#resetAppBtn').onclick=()=>{if(confirm('Naozaj vymazať nastavenia, transakcie a začať odznova?')){state=clone(DEFAULT_STATE);save();render();toast('Appka obnovená.')}};
+function refreshSelects(){$('#categoryInput').innerHTML=cats().map(c=>`<option value="${c.id}">${esc(c.icon)} ${esc(c.name)}</option>`).join('')}
+const oldRender=render;render=()=>{refreshSelects();oldRender()};
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js?v=6').then(r=>r.update()).catch(()=>{})}
+render();navigate('overview');
