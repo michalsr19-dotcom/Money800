@@ -1,7 +1,7 @@
-Money800 v3.3
-- parser upravený na reálny Tatra B-mail: predmet Debet na ucte
-- suma sa berie z textu 'znizeny o X,XX EUR'
-- obchodník z 'Popis transakcie: Platba kartou ..., OBCHODNIK.'
-- podporuje automatický import cez URL fragment #bmail=... zo Skratiek
-- fragment sa neposiela GitHubu/serveru a po importe sa odstráni z adresy
-- testovací B-mail používa reálny formát
+Money800 v4.0
+- automatický Tatra B-mail cloud sync cez Google Apps Script + Google Sheet
+- URL a Sync kľúč sa ukladajú iba lokálne v iPhone
+- synchronizácia pri otvorení appky + ručné tlačidlo
+- ochrana proti duplicitám cez Gmail ID
+- vymazaná cloud transakcia sa znovu neimportuje
+- zachované rozpočty, recepty, úprava kategórií, reset po výplate a test B-mailu

@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=7" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=7" />
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="manifest" href="manifest.webmanifest?v=10" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=10" />
+  <link rel="stylesheet" href="styles.css?v=10" />
   <title>Money800</title>
 </head>
 <body>
@@ -118,29 +118,47 @@
       </section>
 
       <section class="page" data-page="tatra">
-        <div class="page-title-row"><div><h2>Tatra B-mail</h2><p>Import platby z Tatra B-mailu. Parser je upravený na reálny formát „Debet na ucte“ a podporuje automatický vstup zo Skratiek.</p></div><span class="status-dot">● lokálne</span></div>
+        <div class="page-title-row">
+          <div><h2>Tatra Sync</h2><p>B-mail sa spracuje v Gmaili cez Google Apps Script a Money800 si nové platby stiahne pri otvorení alebo po stlačení synchronizácie.</p></div>
+          <span class="status-dot" id="cloudStatusDot">● nepripojené</span>
+        </div>
+
+        <section class="tatra-card cloud-sync-card">
+          <div class="tatra-head"><span class="bank-icon">☁️</span><div><h3>Automatická synchronizácia</h3><p>Sem vložíš URL nasadeného Apps Scriptu a súkromný Sync kľúč z listu Config.</p></div></div>
+          <label class="cloud-label">Apps Script Web App URL
+            <input id="syncUrlInput" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec" />
+          </label>
+          <label class="cloud-label">Sync kľúč
+            <input id="syncKeyInput" type="password" autocomplete="off" placeholder="kľúč z Money800_Data → Config" />
+          </label>
+          <div class="button-row">
+            <button class="secondary" id="saveSyncBtn">Uložiť pripojenie</button>
+            <button class="primary" id="syncNowBtn">Synchronizovať teraz</button>
+          </div>
+          <div class="sync-meta" id="syncMeta">Zatiaľ nesynchronizované.</div>
+        </section>
 
         <section class="tatra-card">
-          <div class="tatra-head"><span class="bank-icon">🏦</span><div><h3>Test Tatra platby</h3><p>Nemusíš ísť nič kupovať. Test používa rovnaký formát ako reálny Tatra B-mail.</p></div></div>
+          <div class="tatra-head"><span class="bank-icon">🧪</span><div><h3>Test Tatra platby</h3><p>Test zostáva zachovaný. Používa rovnaký formát ako reálny B-mail.</p></div></div>
           <div class="button-row"><button class="secondary" id="makeTestEmailBtn">Vytvoriť testovací B-mail</button><button class="primary" id="testAndImportBtn">Test + pridať platbu</button></div>
         </section>
 
         <section class="import-card">
-          <label for="emailText">Text B-mailu</label>
-          <textarea id="emailText" placeholder="Sem vlož text e-mailu z Tatra banky…"></textarea>
+          <label for="emailText">Ručný text B-mailu</label>
+          <textarea id="emailText" placeholder="Sem môžeš vložiť text e-mailu z Tatra banky…"></textarea>
           <button class="secondary wide" id="parseBtn">Rozpoznať e-mail</button>
           <div id="parseResult" class="parse-result"></div>
         </section>
 
         <section class="tatra-info">
-          <h3>Ako to bude fungovať</h3>
-          <div class="flow"><span>📧 B-mail</span><b>→</b><span>💶 suma</span><b>→</b><span>🏪 obchod</span><b>→</b><span>🗂 kategória</span></div>
-          <p>Appka kontroluje aj duplicity, aby si ten istý e-mail nepridal dvakrát. Automatické čítanie Mailu samotnou webovou appkou iPhone nepovoľuje; preto zatiaľ používame import/test a neskôr ho môžeme prepojiť cez Skratky, ak tvoj iOS dovolí potrebný trigger.</p>
+          <h3>Ako to funguje</h3>
+          <div class="flow"><span>🏦 Tatra</span><b>→</b><span>📧 Gmail</span><b>→</b><span>⚙️ Apps Script</span><b>→</b><span>📊 Sheet</span><b>→</b><span>📱 Money800</span></div>
+          <p>Google Apps Script kontroluje B-maily na pozadí. Money800 potom načíta iba sumu, obchodníka, dátum a ID správy. Rovnakú platbu nepridá dvakrát a tvoje vlastné pravidlá kategórií majú prednosť.</p>
         </section>
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Tu meníš celkový rozpočet aj každý limit zvlášť.</p></div><span class="version-pill">v3.3</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Tu meníš celkový rozpočet aj každý limit zvlášť.</p></div><span class="version-pill">v4.0</span></div>
 
         <section class="settings-card">
           <div class="settings-grid">
@@ -221,6 +239,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
