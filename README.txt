@@ -1,9 +1,12 @@
-Money800 v5.0
+Money800 v5.1
 
-Aktualizácia iba webovej appky. Google Apps Script ani Google Sheet netreba meniť.
-Nahraj všetky súbory z tohto priečinka do rovnakého GitHub repozitára Money800 a potvrď Commit changes.
+Novinky:
+- samostatný obed a večera každý deň
+- mäso iba kuracie; zelenina nie je povinná
+- orientačné ceny porcií kalibrované na bežné ceny SK supermarketov 10/2026
+- WOLT sa automaticky zaraďuje do kategórie Jedlo
+- nákupný zoznam spája obed + večeru
+- Tatra Sync / Google Sheet / Apps Script sa nemenia
+- zachováva existujúce localStorage vrátane Sync URL a Sync kľúča
 
-Dôležité:
-- Tatra Sync URL a Sync kľúč zostávajú uložené v localStorage na rovnakej GitHub Pages adrese.
-- Prišla výplata / nový cyklus ponechá Tatra Sync, kategórie, pravidlá obchodníkov aj históriu.
-- Nový odhad sa ukáže až po min. 3 dňoch a 5 transakciách.
+Nahraj všetky súbory do existujúceho GitHub Pages repozitára Money800.

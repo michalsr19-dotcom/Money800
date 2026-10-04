@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=12" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=12" />
-  <link rel="stylesheet" href="styles.css?v=12" />
+  <link rel="manifest" href="manifest.webmanifest?v=13" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=13" />
+  <link rel="stylesheet" href="styles.css?v=13" />
   <title>Money800</title>
 </head>
 <body>
@@ -104,7 +104,7 @@
 
       <section class="page" data-page="food">
         <div class="page-title-row">
-          <div><h2>Jedlo</h2><p>Obed v práci + každý deň iná fitness večera. Zelenina je väčšinou len voliteľná.</p></div>
+          <div><h2>Jedlo</h2><p>Dva samostatné tipy na každý deň: obed a večera. Mäso iba kuracie; zelenina nie je povinná.</p></div>
           <div class="budget-badge" id="foodDailyBadge">0 €/deň</div>
         </div>
 
@@ -114,33 +114,52 @@
           <div><span>Minuté na jedlo</span><strong id="foodSpent">0 €</strong></div>
         </section>
 
-        <section class="daily-plan-card">
-          <div class="daily-plan-title"><div><span class="big-emoji">🥡</span><b>Obed v práci</b></div><strong id="workLunchPriceLabel">6,00 €</strong></div>
-          <p>Jedným ťuknutím zapíšeš bežný objednaný obed.</p>
-          <button class="primary wide" id="workLunchBtn">Pridať obed</button>
+        <section class="price-basis-card">
+          <b>💶 Odhad ceny porcie</b>
+          <p>Recepty používajú orientačné ceny bežných potravín na Slovensku (10/2026). Cena je odhad a môže sa líšiť približne o ±20 % podľa obchodu, značky a akcie.</p>
+          <small>Počítame približne: kuracie 7–8 €/kg, cestoviny 1,1–1,6 €/kg, ryža 1,4–2 €/kg, zemiaky 1,1–1,5 €/kg, mozzarella ~6 €/kg, eidam/gouda ~9–11 €/kg.</small>
         </section>
 
-        <section class="recipe-card">
-          <div class="recipe-topline"><span class="recipe-day" id="recipeDayLabel">Dnešná večera</span><span class="fit-badge" id="recipeFitBadge">V limite</span></div>
-          <div class="recipe-hero"><div class="recipe-icon" id="recipeIcon">🍗</div><div><h3 id="recipeName">Kuracie s ryžou</h3><div class="recipe-macros" id="recipeMacros">~3,50 € · 650 kcal · 50 g bielkovín · 30 min</div></div></div>
-          <div class="meal-budget-line" id="mealBudgetLine"></div>
-          <div class="recipe-grid"><div><h4>Suroviny na 1 porciu</h4><ul id="recipeIngredients"></ul></div><div><h4>Presný postup</h4><ol id="recipeSteps"></ol></div></div>
-          <div class="recipe-tip" id="recipeTip"></div>
-          <div class="recipe-actions">
-            <button class="secondary" id="prevRecipeBtn">← Iný tip</button>
-            <button class="primary" id="addRecipeCostBtn">Pridať cenu večere</button>
-            <button class="secondary" id="nextRecipeBtn">Ďalší →</button>
-          </div>
-          <button class="secondary wide" id="cheaperRecipeBtn">Ukáž lacnejšiu večeru</button>
+        <div class="day-nav-row">
+          <button class="secondary" id="prevMealDayBtn">← Predošlý deň</button>
+          <div class="day-title" id="mealDateLabel">Dnes</div>
+          <button class="secondary" id="nextMealDayBtn">Ďalší deň →</button>
+        </div>
+
+        <div class="meal-card-grid">
+          <section class="recipe-card">
+            <div class="recipe-topline"><span class="recipe-day">☀️ Obed</span><span class="fit-badge" id="lunchFitBadge">Tip</span></div>
+            <div class="recipe-hero"><div class="recipe-icon" id="lunchIcon">🍝</div><div><h3 id="lunchName">Obed</h3><div class="recipe-macros" id="lunchMacros"></div></div></div>
+            <div class="meal-budget-line" id="lunchBudgetLine"></div>
+            <div class="recipe-grid"><div><h4>Suroviny na 1 porciu</h4><ul id="lunchIngredients"></ul></div><div><h4>Postup krok za krokom</h4><ol id="lunchSteps"></ol></div></div>
+            <div class="recipe-tip" id="lunchTip"></div>
+            <button class="primary wide meal-add-btn" id="addLunchCostBtn">Pridať cenu obeda</button>
+          </section>
+
+          <section class="recipe-card">
+            <div class="recipe-topline"><span class="recipe-day">🌙 Večera</span><span class="fit-badge" id="dinnerFitBadge">Tip</span></div>
+            <div class="recipe-hero"><div class="recipe-icon" id="dinnerIcon">🍗</div><div><h3 id="dinnerName">Večera</h3><div class="recipe-macros" id="dinnerMacros"></div></div></div>
+            <div class="meal-budget-line" id="dinnerBudgetLine"></div>
+            <div class="recipe-grid"><div><h4>Suroviny na 1 porciu</h4><ul id="dinnerIngredients"></ul></div><div><h4>Postup krok za krokom</h4><ol id="dinnerSteps"></ol></div></div>
+            <div class="recipe-tip" id="dinnerTip"></div>
+            <button class="primary wide meal-add-btn" id="addDinnerCostBtn">Pridať cenu večere</button>
+          </section>
+        </div>
+
+        <section class="meal-day-summary">
+          <div><span>Odhad obed + večera</span><strong id="mealPairCost">0 €</strong></div>
+          <div><span>Denný food limit</span><strong id="mealPairLimit">0 €</strong></div>
+          <p id="mealPairStatus"></p>
+          <button class="secondary wide" id="cheaperDayBtn">Ukáž lacnejšiu dvojicu jedál</button>
         </section>
 
         <section class="section">
-          <div class="section-head"><div><h2>Plán na 5 večerí</h2><div class="section-note">Päť rôznych večerí od dneška a približná cena spolu.</div></div></div>
+          <div class="section-head"><div><h2>Plán na 5 dní</h2><div class="section-note">Každý deň obed aj večera a približná cena oboch porcií.</div></div></div>
           <div id="fiveDayPlan" class="five-day-plan"></div>
         </section>
 
         <section class="section">
-          <div class="section-head"><div><h2>Nákupný zoznam</h2><div class="section-note">Suroviny z dnešnej večere si môžeš odškrtávať.</div></div><button class="link-btn" id="resetShoppingBtn">Obnoviť</button></div>
+          <div class="section-head"><div><h2>Nákupný zoznam na dnešné jedlá</h2><div class="section-note">Suroviny z obeda aj večere. Wolt platby sa zapisujú automaticky cez Tatra Sync do Jedla.</div></div><button class="link-btn" id="resetShoppingBtn">Obnoviť</button></div>
           <div id="shoppingList" class="shopping-list"></div>
         </section>
       </section>
@@ -173,13 +192,12 @@
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.0</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.1</span></div>
 
         <section class="settings-card">
-          <div class="settings-grid">
+          <div class="settings-grid settings-grid-two">
             <label>Rozpočet na obdobie (€)<input id="budgetInput" inputmode="decimal" /></label>
             <label>Cieľ odložiť (€)<input id="savingsInput" inputmode="decimal" /></label>
-            <label>Obed v práci (€)<input id="workLunchInput" inputmode="decimal" /></label>
           </div>
           <div id="categoryBudgetSum" class="budget-sum-note"></div>
           <button class="primary wide" id="saveMainSettingsBtn">Uložiť nastavenia</button>
@@ -257,6 +275,6 @@
     <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createPlannedBtn" value="default">Pridať</button></menu>
   </form></dialog>
 
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
