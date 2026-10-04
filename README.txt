@@ -1,10 +1,7 @@
-Money800 v3.2
-
-Novinky:
-- aktuálny dátum a dátum/čas pri každej transakcii
-- rozpočtové obdobie od poslednej výplaty/resetu
-- tlačidlo „Prišla výplata“: vynuluje výdavky, prepínače a nákupný zoznam, ale ponechá rozpočet, kategórie a naučené pravidlá obchodov
-- denný limit a odhad sa rátajú pre 30-dňové rozpočtové obdobie
-- zachované Tatra B-mail testy, recepty, úpravy transakcií a kategórií
-
-Nahraj všetky súbory do koreňa GitHub repozitára Money800 a potvrď Commit changes.
+Money800 v3.3
+- parser upravený na reálny Tatra B-mail: predmet Debet na ucte
+- suma sa berie z textu 'znizeny o X,XX EUR'
+- obchodník z 'Popis transakcie: Platba kartou ..., OBCHODNIK.'
+- podporuje automatický import cez URL fragment #bmail=... zo Skratiek
+- fragment sa neposiela GitHubu/serveru a po importe sa odstráni z adresy
+- testovací B-mail používa reálny formát
