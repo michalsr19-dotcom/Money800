@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=14" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=14" />
-  <link rel="stylesheet" href="styles.css?v=14" />
+  <link rel="manifest" href="manifest.webmanifest?v=15" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=15" />
+  <link rel="stylesheet" href="styles.css?v=15" />
   <title>Money800</title>
 </head>
 <body>
@@ -45,6 +45,19 @@
           </div>
         </section>
 
+        <section class="overview-sync-strip" id="overviewSyncStrip">
+          <div><span id="overviewSyncDot">●</span><b id="overviewSyncText">Tatra Sync</b><small id="overviewSyncTime">nepripojené</small></div>
+          <button class="secondary compact" id="overviewSyncBtn">Sync teraz</button>
+        </section>
+
+        <section class="attention-card" id="attentionCard" hidden>
+          <div>
+            <div class="attention-title">⚠️ Treba skontrolovať</div>
+            <div class="attention-copy" id="attentionCopy">Nezaradené platby</div>
+          </div>
+          <button class="primary compact" id="reviewUncategorizedBtn">Skontrolovať</button>
+        </section>
+
         <section class="insight-card" id="forecastCard">
           <div>
             <div class="insight-label">Odhad na konci obdobia</div>
@@ -52,6 +65,20 @@
             <div class="insight-copy" id="forecastCopy">Na spoľahlivejší odhad treba pár dní a viac platieb.</div>
           </div>
           <div class="forecast-ring" id="forecastRing"><span id="forecastPct">—</span></div>
+        </section>
+
+        <section class="section">
+          <div class="section-head"><div><h2>Dnešný prehľad</h2><div class="section-note">Rýchlo vidíš dnešné míňanie a najväčšie položky.</div></div></div>
+          <div class="quick-insight-grid">
+            <div class="analytics-card compact-card"><span>Dnes minuté</span><strong id="todaySpent">0 €</strong><small id="todayCount">0 platieb</small></div>
+            <div class="analytics-card compact-card"><span>Najväčší nákup</span><strong id="biggestPurchase">—</strong><small id="biggestPurchaseName">zatiaľ nič</small></div>
+            <div class="analytics-card compact-card"><span>Top obchodník</span><strong id="topMerchantQuick">—</strong><small id="topMerchantQuickSum">zatiaľ nič</small></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head"><div><h2>Kalendár výdavkov</h2><div class="section-note">Aktuálne 30-dňové obdobie. Ťukni na deň a zobrazia sa jeho platby.</div></div></div>
+          <div class="spend-calendar" id="spendCalendar"></div>
         </section>
 
         <section class="section">
@@ -97,6 +124,7 @@
           <select id="txCategoryFilter"></select>
           <input id="txSearch" class="search-input" placeholder="Hľadať obchod…" />
         </div>
+        <div id="expenseDayFilter" class="day-filter-chip" hidden><span id="expenseDayFilterText"></span><button id="clearExpenseDayFilter">✕</button></div>
         <div id="expenseSummary" class="summary-strip"></div>
         <div id="emptyState" class="empty-state">Zatiaľ tu nič nie je.</div>
         <div id="transactions" class="tx-list"></div>
@@ -118,6 +146,21 @@
           <b>💶 Odhad ceny porcie</b>
           <p>Recepty používajú orientačné ceny bežných potravín na Slovensku (10/2026). Cena je odhad a môže sa líšiť približne o ±20 % podľa obchodu, značky a akcie.</p>
           <small>Počítame približne: kuracie 7–8 €/kg, cestoviny 1,1–1,6 €/kg, ryža 1,4–2 €/kg, zemiaky 1,1–1,5 €/kg, mozzarella ~6 €/kg, eidam/gouda ~9–11 €/kg.</small>
+        </section>
+
+        <section class="food-mood-card">
+          <div class="section-head"><div><h2>Na čo máš dnes chuť?</h2><div class="section-note">Vyber štýl jedla alebo nechaj Náhodne.</div></div><button class="link-btn" id="randomMealBtn">🎲 Iný tip</button></div>
+          <div class="mood-chips" id="moodChips">
+            <button data-food-mood="random">🎲 Náhodne</button>
+            <button data-food-mood="cheap">💶 Lacné</button>
+            <button data-food-mood="quick">⚡ Rýchle</button>
+            <button data-food-mood="pasta">🍝 Cestoviny</button>
+            <button data-food-mood="pizza">🍕 Pizza</button>
+            <button data-food-mood="cheese">🧀 Syrové</button>
+            <button data-food-mood="potato">🥔 Zemiaky</button>
+            <button data-food-mood="chicken">🍗 Kuracie</button>
+            <button data-food-mood="snack">🍿 Snack</button>
+          </div>
         </section>
 
         <div class="day-nav-row">
@@ -192,7 +235,7 @@
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.2</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.3</span></div>
 
         <section class="settings-card">
           <div class="settings-grid settings-grid-two">
@@ -214,7 +257,27 @@
           <div id="plannedEditor" class="planned-list"></div>
         </section>
 
-                <section class="reset-card">
+        <section class="section tools-section">
+          <div class="section-head"><div><h2>Ciele šetrenia</h2><div class="section-note">Samostatné ciele mimo mesačného cieľa „odložiť“.</div></div><button class="link-btn" id="addGoalBtn">＋ Cieľ</button></div>
+          <div id="goalsEditor" class="goals-list"></div>
+        </section>
+
+        <section class="section tools-section">
+          <div class="section-head"><div><h2>Pravidlá obchodníkov</h2><div class="section-note">Napr. WOLT → Jedlo. Pravidlá sa používajú pri ďalších Tatra platbách.</div></div></div>
+          <div id="merchantRulesEditor" class="rules-list"></div>
+        </section>
+
+        <section class="section tools-section">
+          <div class="section-head"><div><h2>Možné predplatné</h2><div class="section-note">Ak Money800 rozpozná typického obchodníka, ponúkne ho medzi plánované platby.</div></div></div>
+          <div id="subscriptionSuggestions" class="suggestion-list"></div>
+        </section>
+
+        <section class="section tools-section">
+          <div class="section-head"><div><h2>Záloha a export</h2><div class="section-note">Export aktuálneho obdobia a nastavení. Tatra Script ani Google Sheet sa nemenia.</div></div></div>
+          <div class="button-row"><button class="secondary" id="exportCsvBtn">Export CSV</button><button class="secondary" id="exportJsonBtn">Export JSON</button></div>
+        </section>
+
+        <section class="reset-card">
           <h3>💰 Prišla výplata</h3>
           <p id="currentPeriodSummary">Aktuálne obdobie</p>
           <p>Vymaže výdavky z končiaceho obdobia a začne od nuly. <b>Tatra Sync, Sync kľúč, kategórie, plánované platby a pravidlá obchodníkov zostanú.</b> Staré obdobie sa neukladá.</p>
@@ -270,6 +333,14 @@
     <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createPlannedBtn" value="default">Pridať</button></menu>
   </form></dialog>
 
-  <script src="app.js?v=14"></script>
+  <dialog id="goalDialog"><form method="dialog" class="dialog-card" id="goalForm">
+    <div class="dialog-head"><h3>Nový cieľ šetrenia</h3><button class="icon-btn" value="cancel">✕</button></div>
+    <label>Názov<input id="goalName" placeholder="Nový PC" required /></label>
+    <label>Cieľová suma (€)<input id="goalTarget" inputmode="decimal" placeholder="1500" required /></label>
+    <label>Už odložené (€)<input id="goalSaved" inputmode="decimal" placeholder="0" /></label>
+    <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createGoalBtn" value="default">Pridať</button></menu>
+  </form></dialog>
+
+  <script src="app.js?v=15"></script>
 </body>
 </html>

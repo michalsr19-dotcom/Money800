@@ -1,5 +1,5 @@
-const APP_VERSION='5.2';
-const CACHE_VERSION='14';
+const APP_VERSION='5.3';
+const CACHE_VERSION='15';
 const BUDGET_PERIOD_DAYS=30;
 
 const DEFAULT_CATEGORIES=[
@@ -18,7 +18,7 @@ const DEFAULT_STATE={
     periodStart:new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime(),
     syncUrl:'',syncKey:'',lastSync:0,categories:DEFAULT_CATEGORIES
   },
-  transactions:[],monthlyFlags:{},shopping:{},merchantRules:{},ignoredExternalIds:[],planned:[],version:APP_VERSION
+  transactions:[],monthlyFlags:{},shopping:{},merchantRules:{},ignoredExternalIds:[],planned:[],goals:[],subscriptionDismissed:[],version:APP_VERSION
 };
 
 // 31 večerí: minimum zeleniny, väčšinou len voliteľná príloha.
@@ -76,16 +76,17 @@ function migrate(raw){
       syncUrl:String(r.settings?.syncUrl||''),
       syncKey:String(r.settings?.syncKey||''),
       lastSync:Number(r.settings?.lastSync||0),
+      foodMood:String(r.settings?.foodMood||'random'),
       categories
     },
     transactions:(Array.isArray(r.transactions)?r.transactions:[]).filter(t=>Number(t.ts)>= (Number(r.settings?.periodStart)||new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime())),
     monthlyFlags:r.monthlyFlags||{},shopping:r.shopping||{},merchantRules:r.merchantRules||{},
     ignoredExternalIds:Array.isArray(r.ignoredExternalIds)?r.ignoredExternalIds:[],
-    planned:Array.isArray(r.planned)?r.planned:[],version:APP_VERSION
+    planned:Array.isArray(r.planned)?r.planned:[],goals:Array.isArray(r.goals)?r.goals:[],subscriptionDismissed:Array.isArray(r.subscriptionDismissed)?r.subscriptionDismissed:[],version:APP_VERSION
   };
 }
 const store={get(){try{return migrate(JSON.parse(localStorage.getItem('money800')||'null'))}catch{return clone(DEFAULT_STATE)}},set(v){localStorage.setItem('money800',JSON.stringify(v))}};
-let state=store.get(),recipeOffset=0,currentFilter='all',currentSearch='',currentEditTxId=null; store.set(state);
+let state=store.get(),recipeOffset=0,mealVariant=0,currentFilter='all',currentSearch='',currentDayFilter='',currentEditTxId=null; store.set(state);
 function save(){state.version=APP_VERSION;store.set(state)}
 function cats(){return state.settings.categories}
 function cat(id){return cats().find(c=>c.id===id)||cats().find(c=>c.id==='other')||cats()[0]}
@@ -100,7 +101,14 @@ function totalSpent(){return cats().reduce((s,c)=>s+catSpent(c.id),0)}
 function daysElapsed(){return Math.max(1,Math.floor((Date.now()-periodStartTs())/86400000)+1)}
 function daysLeft(){return Math.max(1,BUDGET_PERIOD_DAYS-daysElapsed()+1)}
 function merchantKey(m=''){return String(m).toLowerCase().replace(/[^a-z0-9áäčďéíĺľňóôŕšťúýž ]/gi,' ').replace(/\s+/g,' ').trim()}
-function autoCat(merchant=''){const key=merchantKey(merchant),rule=state.merchantRules?.[key],m=merchant.toLowerCase();if(rule&&cats().some(c=>c.id===rule))return rule;return cats().find(c=>(c.keywords||[]).some(k=>m.includes(k)))?.id||'other'}
+function autoCatInfo(merchant=''){
+  const key=merchantKey(merchant),rule=state.merchantRules?.[key],m=String(merchant).toLowerCase();
+  if(rule&&cats().some(c=>c.id===rule))return {id:rule,reason:'rule'};
+  const hit=cats().find(c=>(c.keywords||[]).some(k=>m.includes(k)));
+  if(hit)return {id:hit.id,reason:'keyword'};
+  return {id:'other',reason:'unknown'};
+}
+function autoCat(merchant=''){return autoCatInfo(merchant).id}
 function fingerprint(amount,merchant,text=''){return `${Number(amount).toFixed(2)}|${merchantKey(merchant)}|${String(text).slice(0,90).toLowerCase().replace(/\s+/g,' ')}`}
 function pendingPlanned(){return state.planned.filter(p=>!p.paid).reduce((s,p)=>s+Number(p.amount||0),0)}
 function addTx(amount,merchant,category,source='manual',fp=''){
@@ -114,7 +122,7 @@ function addCloudTx(row){
   if(state.ignoredExternalIds.includes(externalId)||state.transactions.some(t=>String(t.externalId||'')===externalId))return false;
   const ts=Date.parse(row.date)||Date.now(); if(ts<periodStartTs())return false;
   const amount=Number(row.amount||0),merchant=String(row.merchant||'Neznámy obchod').trim(); if(!amount||!merchant)return false;
-  state.transactions.push({id:uid(),externalId,amount,merchant,category:autoCat(merchant),source:'Tatra B-mail cloud',ts,period:periodKey(),fingerprint:`cloud|${externalId}`});
+  const auto=autoCatInfo(merchant);state.transactions.push({id:uid(),externalId,amount,merchant,category:auto.id,needsReview:auto.reason==='unknown',source:'Tatra B-mail cloud',ts,period:periodKey(),fingerprint:`cloud|${externalId}`});
   return true;
 }
 
@@ -172,6 +180,33 @@ function renderPlannedOverview(){
   el.innerHTML=list.map(p=>`<div class="planned-item"><div class="planned-left"><div class="planned-icon">${esc(cat(p.category)?.icon||'📌')}</div><div><div class="planned-title">${esc(p.name)}</div><div class="planned-sub">${fmt(p.amount)} · deň ${p.day||'—'} · ${esc(cat(p.category)?.name||'Ostatné')}</div></div></div><div class="planned-actions"><span class="category-badge">${p.paid?'✅ zaplatené':'⏳ rezervované'}</span><button class="quick-btn ${p.paid?'paid':''}" data-plan-toggle="${p.id}">${p.paid?'Vrátiť':'Zaplatené'}</button></div></div>`).join('');
   $$('[data-plan-toggle]').forEach(b=>b.onclick=()=>{const p=state.planned.find(x=>x.id===b.dataset.planToggle);if(!p)return;p.paid=!p.paid;save();render();toast(p.paid?'Plánovaná platba označená ako zaplatená.':'Platba znova rezervovaná.')});
 }
+function txNeedsReview(t){return t.needsReview===true||(t.needsReview==null&&t.category==='other'&&/Tatra/i.test(String(t.source||'')))}
+function uncategorizedTx(){return txPeriod().filter(txNeedsReview)}
+function dayKey(ts){const d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function todayTransactions(){const k=dayKey(Date.now());return txPeriod().filter(t=>dayKey(t.ts)===k)}
+function biggestTx(){return txPeriod().slice().sort((a,b)=>Number(b.amount)-Number(a.amount))[0]||null}
+function safeDailyLimit(){const realFree=Number(state.settings.budget)-Number(state.settings.savings)-totalSpent()-pendingPlanned();return Math.max(0,realFree)/daysLeft()}
+function renderOverviewSync(){
+  const connected=!!(state.settings.syncUrl&&state.settings.syncKey),dot=$('#overviewSyncDot'),txt=$('#overviewSyncText'),time=$('#overviewSyncTime');
+  if(!dot)return;dot.className=connected?'sync-ok':'sync-off';txt.textContent=connected?'Tatra pripojená':'Tatra nepripojená';time.textContent=connected?(state.settings.lastSync?`posledný sync ${new Date(state.settings.lastSync).toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'})}`:'pripravené na sync'):'otvor Tatra a nastav pripojenie';
+}
+function renderCalendar(){
+  const el=$('#spendCalendar');if(!el)return;const start=new Date(periodStartTs());start.setHours(0,0,0,0);const map={};txPeriod().forEach(t=>{const k=dayKey(t.ts);map[k]=(map[k]||0)+Number(t.amount||0)});
+  const today=dayKey(Date.now());const items=[];for(let i=0;i<BUDGET_PERIOD_DAYS;i++){const d=new Date(start.getTime()+i*86400000),k=dayKey(d),sum=map[k]||0;items.push(`<button class="cal-day ${k===today?'today':''} ${sum?'has-spend':''}" data-cal-date="${k}"><small>${d.toLocaleDateString('sk-SK',{weekday:'short'})}</small><b>${d.getDate()}</b><span>${sum?fmt(sum):'—'}</span></button>`)}el.innerHTML=items.join('');$$('[data-cal-date]').forEach(b=>b.onclick=()=>{currentDayFilter=b.dataset.calDate;navigate('expenses');renderExpenses()});
+}
+function merchantRuleRows(){return Object.entries(state.merchantRules||{}).sort((a,b)=>a[0].localeCompare(b[0]))}
+const SUBSCRIPTION_HINTS=['netflix','spotify','youtube','google','icloud','apple','microsoft','adobe','nvidia','geforce','hbo','max','disney','canva','dropbox','notion'];
+function subscriptionCandidates(){
+  const plannedKeys=new Set(state.planned.map(p=>merchantKey(p.name)));const dismissed=new Set(state.subscriptionDismissed||[]);const map={};
+  txPeriod().forEach(t=>{const k=merchantKey(t.merchant);if(!k||dismissed.has(k)||plannedKeys.has(k))return;if(!SUBSCRIPTION_HINTS.some(h=>k.includes(h)))return;if(!map[k])map[k]={key:k,name:t.merchant,amount:Number(t.amount||0),category:t.category,count:0};map[k].count++;map[k].amount=Number(t.amount||0)});
+  return Object.values(map).slice(0,6);
+}
+function downloadFile(filename,text,type){const blob=new Blob([text],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function exportCsv(){const head=['Dátum','Čas','Obchodník','Suma EUR','Kategória','Zdroj'];const rows=txPeriod().slice().sort((a,b)=>a.ts-b.ts).map(t=>{const d=new Date(t.ts);return [d.toLocaleDateString('sk-SK'),d.toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'}),t.merchant,Number(t.amount).toFixed(2),cat(t.category)?.name||t.category,t.source||'']});const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;downloadFile(`Money800_${dayKey(Date.now())}.csv`,[head,...rows].map(r=>r.map(q).join(';')).join('\n'),'text/csv;charset=utf-8')}
+function exportJson(){const data={version:APP_VERSION,exportedAt:new Date().toISOString(),settings:{...state.settings,syncKey:'***nezahrnuté***'},categories:cats(),planned:state.planned,goals:state.goals,merchantRules:state.merchantRules,transactions:txPeriod()};downloadFile(`Money800_backup_${dayKey(Date.now())}.json`,JSON.stringify(data,null,2),'application/json')}
+function renderGoals(){const el=$('#goalsEditor');if(!el)return;if(!state.goals.length){el.innerHTML='<div class="planned-empty">Zatiaľ nemáš žiadny cieľ. Môžeš si pridať napr. PC, dovolenku alebo rezervu.</div>';return}el.innerHTML=state.goals.map(g=>{const pct=Math.min(100,Number(g.saved||0)/Math.max(1,Number(g.target||0))*100);return `<div class="goal-card"><div class="goal-head"><div><b>${esc(g.name)}</b><small>${fmt(g.saved)} z ${fmt(g.target)}</small></div><strong>${Math.round(pct)}%</strong></div><div class="bar"><div style="width:${pct}%"></div></div><div class="goal-actions"><button class="quick-btn" data-goal-add="${g.id}">＋ Pridať</button><button class="mini-delete" data-goal-del="${g.id}">Vymazať</button></div></div>`}).join('');$$('[data-goal-add]').forEach(b=>b.onclick=()=>{const g=state.goals.find(x=>x.id===b.dataset.goalAdd);if(!g)return;const v=prompt(`Koľko pridať do cieľa ${g.name}?`,'20');const n=parseNum(v);if(n>0){g.saved=Math.min(Number(g.target),Number(g.saved||0)+n);save();renderSettings();toast('Cieľ aktualizovaný.')}});$$('[data-goal-del]').forEach(b=>b.onclick=()=>{state.goals=state.goals.filter(x=>x.id!==b.dataset.goalDel);save();renderSettings()})}
+function renderMerchantRules(){const el=$('#merchantRulesEditor');if(!el)return;const rows=merchantRuleRows();if(!rows.length){el.innerHTML='<div class="planned-empty">Zatiaľ žiadne vlastné pravidlá. Vytvoria sa pri úprave transakcie cez „zapamätať“.</div>';return}el.innerHTML=rows.map(([m,cid])=>`<div class="rule-row"><div><b>${esc(m)}</b><small>→ ${esc(cat(cid)?.icon||'💳')} ${esc(cat(cid)?.name||cid)}</small></div><button class="mini-delete" data-rule-del="${esc(m)}">Vymazať</button></div>`).join('');$$('[data-rule-del]').forEach(b=>b.onclick=()=>{delete state.merchantRules[b.dataset.ruleDel];save();renderSettings();toast('Pravidlo vymazané.')})}
+function renderSubscriptions(){const el=$('#subscriptionSuggestions');if(!el)return;const list=subscriptionCandidates();if(!list.length){el.innerHTML='<div class="planned-empty">Momentálne nič nové nevyzerá ako typické predplatné.</div>';return}el.innerHTML=list.map(s=>`<div class="suggestion-row"><div><b>${esc(s.name)}</b><small>${fmt(s.amount)} · ${esc(cat(s.category)?.name||'Ostatné')} · možné predplatné</small></div><div class="suggestion-actions"><button class="quick-btn" data-sub-add="${esc(s.key)}">Pridať</button><button class="mini-delete" data-sub-dismiss="${esc(s.key)}">Skryť</button></div></div>`).join('');$$('[data-sub-add]').forEach(b=>b.onclick=()=>{const s=subscriptionCandidates().find(x=>x.key===b.dataset.subAdd);if(!s)return;state.planned.push({id:uid(),name:s.name,amount:s.amount,category:s.category||'other',day:Math.min(30,daysElapsed()),paid:true});save();render();toast('Pridané medzi plánované platby.')});$$('[data-sub-dismiss]').forEach(b=>b.onclick=()=>{state.subscriptionDismissed=[...(state.subscriptionDismissed||[]),b.dataset.subDismiss];save();renderSettings()})}
 function renderOverview(){
   const budget=state.settings.budget,spent=totalSpent(),planned=pendingPlanned(),remaining=budget-spent,realFree=budget-state.settings.savings-spent-planned;
   $('#todayLabel').textContent=`Dnes ${new Intl.DateTimeFormat('sk-SK',{day:'numeric',month:'long',year:'numeric'}).format(new Date())}`;
@@ -188,21 +223,28 @@ function renderOverview(){
   const merchants=topMerchants();$('#topMerchants').innerHTML=merchants.length?merchants.map((m,i)=>`<div class="rank-row"><div><div class="rank-name">${i+1}. ${esc(m.name)}</div><div class="rank-sub">${m.count} ${m.count===1?'platba':'platieb'}</div></div><b>${fmt(m.sum)}</b></div>`).join(''):'<div class="planned-empty">Zatiaľ málo platieb.</div>';
   const dayMap={};txPeriod().forEach(t=>{const d=new Date(t.ts).toLocaleDateString('sk-SK');if(!dayMap[d])dayMap[d]={sum:0,count:0};dayMap[d].sum+=Number(t.amount||0);dayMap[d].count++});const best=Object.entries(dayMap).map(([date,v])=>({date,...v})).sort((a,b)=>b.sum-a.sum)[0],highlight=$('#currentPeriodHighlight');if(!best){highlight.innerHTML='<div class="trend-muted">Zatiaľ tu nie sú žiadne výdavky.</div>'}else{highlight.innerHTML=`<div class="trend-big">${fmt(best.sum)}</div><div class="trend-muted">${esc(best.date)} · ${best.count} ${best.count===1?'platba':'platieb'} v najdrahšom dni tohto obdobia.</div>`}
   const pair=getMealPair();$('#recipeActionText').textContent=`Obed + večera ~${fmt(pair.lunch.c+pair.dinner.c)}`;
+  const review=uncategorizedTx(),att=$('#attentionCard');if(att){att.hidden=!review.length;$('#attentionCopy').textContent=review.length?`${review.length} ${review.length===1?'platba potrebuje':'platby potrebujú'} zaradiť.`:''}
+  const today=todayTransactions(),todaySum=today.reduce((s,t)=>s+Number(t.amount||0),0);$('#todaySpent').textContent=fmt(todaySum);$('#todayCount').textContent=`${today.length} ${today.length===1?'platba':'platieb'}`;
+  const big=biggestTx();$('#biggestPurchase').textContent=big?fmt(big.amount):'—';$('#biggestPurchaseName').textContent=big?big.merchant:'zatiaľ nič';const top=merchants[0];$('#topMerchantQuick').textContent=top?top.name:'—';$('#topMerchantQuickSum').textContent=top?fmt(top.sum):'zatiaľ nič';
+  renderOverviewSync();renderCalendar();
 }
 
 function openEditTx(id){const t=state.transactions.find(x=>x.id===id);if(!t)return;currentEditTxId=id;$('#editTxAmount').value=String(t.amount).replace('.',',');$('#editTxMerchant').value=t.merchant;$('#editTxCategory').innerHTML=cats().map(c=>`<option value="${c.id}" ${c.id===t.category?'selected':''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('');$('#editTxRemember').checked=false;$('#editTxSource').textContent=`Zdroj: ${t.source||'manual'} · ${new Date(t.ts).toLocaleString('sk-SK')}`;$('#editTxDialog').showModal()}
 function renderExpenses(){
-  let list=txPeriod(); if(currentFilter!=='all')list=list.filter(t=>t.category===currentFilter); if(currentSearch)list=list.filter(t=>String(t.merchant).toLowerCase().includes(currentSearch.toLowerCase()));
+  let list=txPeriod(); if(currentFilter!=='all')list=list.filter(t=>t.category===currentFilter); if(currentSearch)list=list.filter(t=>String(t.merchant).toLowerCase().includes(currentSearch.toLowerCase())); if(currentDayFilter)list=list.filter(t=>dayKey(t.ts)===currentDayFilter);
+  const df=$('#expenseDayFilter');if(df){df.hidden=!currentDayFilter;if(currentDayFilter)$('#expenseDayFilterText').textContent=`Deň ${new Date(currentDayFilter+'T12:00:00').toLocaleDateString('sk-SK')}`;}
   $('#txCategoryFilter').innerHTML=`<option value="all">Všetky kategórie</option>`+cats().map(c=>`<option value="${c.id}" ${currentFilter===c.id?'selected':''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('');
   $('#expenseSummary').textContent=`Zobrazené: ${list.length} · spolu ${fmt(list.reduce((s,t)=>s+t.amount,0))}`;$('#emptyState').style.display=list.length?'none':'block';
-  $('#transactions').innerHTML=list.sort((a,b)=>b.ts-a.ts).map(t=>{const c=cat(t.category);return `<div class="tx"><div class="tx-left"><div class="tx-icon">${esc(c.icon)}</div><div><div class="tx-title">${esc(t.merchant)}</div><div class="tx-sub">${esc(c.name)} · ${new Date(t.ts).toLocaleString('sk-SK',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}<br>${esc(t.source||'manual')}</div></div></div><div class="tx-right"><span class="tx-amt">−${fmt(t.amount)}</span><button class="edit-btn" data-edit-tx="${t.id}">Upraviť</button><button class="delete-btn" data-del="${t.id}">✕</button></div></div>`}).join('');
+  $('#transactions').innerHTML=list.sort((a,b)=>b.ts-a.ts).map(t=>{const c=cat(t.category);return `<div class="tx"><div class="tx-left"><div class="tx-icon">${esc(c.icon)}</div><div><div class="tx-title">${esc(t.merchant)} ${txNeedsReview(t)?'<span class="review-badge">skontrolovať</span>':''}</div><div class="tx-sub">${esc(c.name)} · ${new Date(t.ts).toLocaleString('sk-SK',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}<br>${esc(t.source||'manual')}</div></div></div><div class="tx-right"><span class="tx-amt">−${fmt(t.amount)}</span><button class="edit-btn" data-edit-tx="${t.id}">Upraviť</button><button class="delete-btn" data-del="${t.id}">✕</button></div></div>`}).join('');
   $$('[data-edit-tx]').forEach(b=>b.onclick=()=>openEditTx(b.dataset.editTx));$$('[data-del]').forEach(b=>b.onclick=()=>deleteTx(b.dataset.del));
 }
 function deleteTx(id){const t=state.transactions.find(x=>x.id===id);if(!t)return;if(!confirm(`Vymazať ${t.merchant} ${fmt(t.amount)}?`))return;if(t.externalId&&!state.ignoredExternalIds.includes(t.externalId))state.ignoredExternalIds.push(t.externalId);state.transactions=state.transactions.filter(x=>x.id!==id);save();render();toast('Výdavok vymazaný.')}
 
 function mealSeed(offset=0){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+offset);return Number(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`)}
-function seededRecipe(seed,salt=0){let x=(seed*9301+49297+salt*233)%233280;if(x<0)x+=233280;return RECIPES[Math.floor((x/233280)*RECIPES.length)%RECIPES.length]}
-function getMealPair(offset=recipeOffset){const seed=mealSeed(offset),lunch=seededRecipe(seed,3);let dinner=seededRecipe(seed,11),tries=0;while((dinner===lunch||(lunch.chicken&&dinner.chicken))&&tries<RECIPES.length){dinner=RECIPES[(RECIPES.indexOf(dinner)+5)%RECIPES.length];tries++}return {lunch,dinner}}
+function recipeTags(r){const s=(r.n+' '+r.ing.join(' ')).toLowerCase(),tags=[];if(/cestovin|penne|špaget|mac|gnocchi|kolien/.test(s))tags.push('pasta');if(/pizza|baget/.test(s))tags.push('pizza');if(/syr|syrov|mozz|eidam|gouda|cheddar|parmez/.test(s))tags.push('cheese');if(/zemiak|hranol/.test(s))tags.push('potato');if(r.chicken)tags.push('chicken');if(/chips|nachos|toast|quesadilla|snack/.test(s))tags.push('snack');if(r.c<=2.5)tags.push('cheap');if(r.t<=20)tags.push('quick');return tags}
+function recipePool(){const mood=state.settings.foodMood||'random';if(mood==='random')return RECIPES;const p=RECIPES.filter(r=>recipeTags(r).includes(mood));return p.length?p:RECIPES}
+function seededRecipe(seed,salt=0){const pool=recipePool();let x=(seed*9301+49297+salt*233+mealVariant*7919)%233280;if(x<0)x+=233280;return pool[Math.floor((x/233280)*pool.length)%pool.length]}
+function getMealPair(offset=recipeOffset){const seed=mealSeed(offset),lunch=seededRecipe(seed,3);let dinner=seededRecipe(seed,11),tries=0,pool=recipePool();while((dinner===lunch||(lunch.chicken&&dinner.chicken))&&tries<pool.length){dinner=pool[(pool.indexOf(dinner)+5+mealVariant)%pool.length];tries++}return {lunch,dinner}}
 function shoppingKey(){return `${periodKey()}|meal-${mealSeed(recipeOffset)}`}
 function combinedIngredients(lunch,dinner){const all=[...lunch.ing.map(x=>`Obed: ${x}`),...dinner.ing.map(x=>`Večera: ${x}`)];return all}
 function renderShopping(lunch,dinner){const key=shoppingKey();if(!state.shopping[key])state.shopping[key]={};const items=combinedIngredients(lunch,dinner);$('#shoppingList').innerHTML=items.map((x,i)=>`<label class="shopping-item ${state.shopping[key][i]?'checked':''}"><input type="checkbox" data-shop="${i}" ${state.shopping[key][i]?'checked':''}><span>${esc(x)}</span></label>`).join('');$$('[data-shop]').forEach(ch=>ch.onchange=()=>{state.shopping[key][ch.dataset.shop]=ch.checked;save();renderShopping(lunch,dinner)})}
@@ -213,6 +255,7 @@ function renderMealCard(prefix,r,daily){
   const badge=$(`#${prefix}FitBadge`),ok=daily<=0||r.c<=daily;badge.textContent=ok?'V limite':'Nad denný limit';badge.className=`fit-badge ${ok?'good':'bad'}`;
 }
 function renderFood(){
+  $$('[data-food-mood]').forEach(b=>b.classList.toggle('active',b.dataset.foodMood===(state.settings.foodMood||'random')));
   const fc=cat('food')||{limit:0},spent=catSpent('food'),remain=Math.max(0,Number(fc.limit||0)-spent),daily=remain/daysLeft(),pair=getMealPair(),lunch=pair.lunch,dinner=pair.dinner,total=lunch.c+dinner.c;
   $('#foodRemaining').textContent=fmt(remain);$('#foodDaily').textContent=fmt(daily);$('#foodSpent').textContent=fmt(spent);$('#foodDailyBadge').textContent=`${fmt(daily)}/deň`;
   $('#mealDateLabel').textContent=new Date(Date.now()+recipeOffset*86400000).toLocaleDateString('sk-SK',{weekday:'long',day:'numeric',month:'long'});
@@ -235,7 +278,7 @@ function renderCategoryEditor(){
 }
 function updateBudgetSum(){const sum=cats().reduce((s,c)=>s+parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value??c.limit),0),budget=parseNum($('#budgetInput')?.value||state.settings.budget),el=$('#categoryBudgetSum');el.textContent=`Súčet limitov kategórií: ${fmt(sum)} z celkového rozpočtu ${fmt(budget)}.`;el.style.color=sum>budget?'var(--warn)':'var(--muted)'}
 function renderPlannedEditor(){const el=$('#plannedEditor');if(!state.planned.length){el.innerHTML='<div class="planned-empty">Žiadne plánované platby.</div>';return}el.innerHTML=state.planned.map(p=>`<div class="planned-item"><div class="planned-left"><div class="planned-icon">${esc(cat(p.category)?.icon||'📌')}</div><div><div class="planned-title">${esc(p.name)}</div><div class="planned-sub">${fmt(p.amount)} · deň ${p.day||'—'} · ${esc(cat(p.category)?.name||'Ostatné')}</div></div></div><div class="planned-actions"><button class="quick-btn ${p.paid?'paid':''}" data-plan-toggle="${p.id}">${p.paid?'Zaplatené':'Čaká'}</button><button class="mini-delete" data-plan-del="${p.id}">Vymazať</button></div></div>`).join('');$$('[data-plan-toggle]').forEach(b=>b.onclick=()=>{const p=state.planned.find(x=>x.id===b.dataset.planToggle);p.paid=!p.paid;save();renderSettings();renderOverview()});$$('[data-plan-del]').forEach(b=>b.onclick=()=>{state.planned=state.planned.filter(x=>x.id!==b.dataset.planDel);save();renderSettings();renderOverview()})}
-function renderSettings(){const s=state.settings;$('#budgetInput').value=String(s.budget).replace('.',',');$('#savingsInput').value=String(s.savings).replace('.',',');$('#currentPeriodSummary').textContent=`Aktuálne obdobie od ${new Date(periodStartTs()).toLocaleDateString('sk-SK')} · minuté ${fmt(totalSpent())} · ${txPeriod().length} platieb`;renderCategoryEditor();renderPlannedEditor();updateBudgetSum()}
+function renderSettings(){const s=state.settings;$('#budgetInput').value=String(s.budget).replace('.',',');$('#savingsInput').value=String(s.savings).replace('.',',');$('#currentPeriodSummary').textContent=`Aktuálne obdobie od ${new Date(periodStartTs()).toLocaleDateString('sk-SK')} · minuté ${fmt(totalSpent())} · ${txPeriod().length} platieb`;renderCategoryEditor();renderPlannedEditor();renderGoals();renderMerchantRules();renderSubscriptions();updateBudgetSum()}
 
 
 function refreshSelects(){const opts=cats().map(c=>`<option value="${c.id}">${esc(c.icon)} ${esc(c.name)}</option>`).join('');$('#categoryInput').innerHTML=opts;$('#plannedCategory').innerHTML=opts}
@@ -246,7 +289,7 @@ $$('[data-nav]').forEach(b=>b.onclick=()=>navigate(b.dataset.nav));$('#quickSett
 $('#merchantInput').oninput=e=>$('#categoryInput').value=autoCat(e.target.value);
 $('#saveTxBtn').onclick=e=>{e.preventDefault();const a=parseNum($('#amountInput').value),m=$('#merchantInput').value.trim();if(!a||!m)return;addTx(a,m,$('#categoryInput').value);$('#addForm').reset();$('#addDialog').close()};
 $('#txCategoryFilter').onchange=e=>{currentFilter=e.target.value;renderExpenses()};$('#txSearch').oninput=e=>{currentSearch=e.target.value.trim();renderExpenses()};
-$('#editTxSave').onclick=e=>{e.preventDefault();const t=state.transactions.find(x=>x.id===currentEditTxId);if(!t)return;const amount=parseNum($('#editTxAmount').value),merchant=$('#editTxMerchant').value.trim(),category=$('#editTxCategory').value;if(!amount||!merchant)return;t.amount=amount;t.merchant=merchant;t.category=category;if($('#editTxRemember').checked)state.merchantRules[merchantKey(merchant)]=category;save();$('#editTxDialog').close();render();toast($('#editTxRemember').checked?'Opravené a pravidlo zapamätané.':'Transakcia opravená.')};
+$('#editTxSave').onclick=e=>{e.preventDefault();const t=state.transactions.find(x=>x.id===currentEditTxId);if(!t)return;const amount=parseNum($('#editTxAmount').value),merchant=$('#editTxMerchant').value.trim(),category=$('#editTxCategory').value;if(!amount||!merchant)return;t.amount=amount;t.merchant=merchant;t.category=category;t.needsReview=false;if($('#editTxRemember').checked)state.merchantRules[merchantKey(merchant)]=category;save();$('#editTxDialog').close();render();toast($('#editTxRemember').checked?'Opravené a pravidlo zapamätané.':'Transakcia opravená.')};
 $('#editTxDelete').onclick=()=>{if(currentEditTxId)deleteTx(currentEditTxId);$('#editTxDialog').close()};
 $('#prevMealDayBtn').onclick=()=>{recipeOffset--;renderFood()};$('#nextMealDayBtn').onclick=()=>{recipeOffset++;renderFood()};$('#cheaperDayBtn').onclick=findCheaperDay;$('#addLunchCostBtn').onclick=()=>{const r=getMealPair().lunch;addTx(r.c,`Domáci obed: ${r.n}`,'food','recept')};$('#addDinnerCostBtn').onclick=()=>{const r=getMealPair().dinner;addTx(r.c,`Domáca večera: ${r.n}`,'food','recept')};$('#resetShoppingBtn').onclick=()=>{state.shopping[shoppingKey()]={};save();renderFood()};
 $('#makeTestEmailBtn').onclick=()=>{$('#emailText').value=testEmail();showParsed($('#emailText').value)};$('#testAndImportBtn').onclick=()=>{const t=testEmail();$('#emailText').value=t;showParsed(t,true)};$('#parseBtn').onclick=()=>showParsed($('#emailText').value.trim());
@@ -257,6 +300,14 @@ $('#addCategoryBtn').onclick=()=>$('#categoryDialog').showModal();$('#createCate
 $('#addPlannedBtn').onclick=()=>$('#plannedDialog').showModal();$('#createPlannedBtn').onclick=e=>{e.preventDefault();const name=$('#plannedName').value.trim(),amount=parseNum($('#plannedAmount').value),day=Math.min(30,Math.max(1,parseInt($('#plannedDay').value||'1',10)));if(!name||!amount)return;state.planned.push({id:uid(),name,amount,category:$('#plannedCategory').value||'other',day,paid:false});save();$('#plannedDialog').close();$('#plannedForm').reset();render();toast('Plánovaná platba pridaná.')};
 $('#paydayResetBtn').onclick=()=>{if(confirm('Začať nové obdobie? Výdavky z končiaceho obdobia sa vymažú. Tatra Sync, Sync kľúč, kategórie, plánované platby a pravidlá obchodníkov zostanú.')){state.transactions=[];state.settings.periodStart=Date.now();state.monthlyFlags={};state.shopping={};state.planned.forEach(p=>p.paid=false);save();render();navigate('overview');toast('Nové obdobie začalo od nuly.')}};
 
+$('#overviewSyncBtn').onclick=()=>syncTatraCloud(false);
+$('#reviewUncategorizedBtn').onclick=()=>{currentFilter='all';currentDayFilter='';navigate('expenses');currentSearch='';$('#txSearch').value='';renderExpenses();setTimeout(()=>{const first=uncategorizedTx()[0];if(first)openEditTx(first.id)},120)};
+$('#clearExpenseDayFilter').onclick=()=>{currentDayFilter='';renderExpenses()};
+$$('[data-food-mood]').forEach(b=>b.onclick=()=>{state.settings.foodMood=b.dataset.foodMood;mealVariant=0;save();renderFood()});
+$('#randomMealBtn').onclick=()=>{mealVariant++;renderFood();toast('Nový tip na jedlo.')};
+$('#addGoalBtn').onclick=()=>$('#goalDialog').showModal();
+$('#createGoalBtn').onclick=e=>{e.preventDefault();const name=$('#goalName').value.trim(),target=parseNum($('#goalTarget').value),saved=parseNum($('#goalSaved').value);if(!name||!target)return;state.goals.push({id:uid(),name,target,saved:Math.min(saved,target)});save();$('#goalDialog').close();$('#goalForm').reset();renderSettings();toast('Cieľ pridaný.')};
+$('#exportCsvBtn').onclick=exportCsv;$('#exportJsonBtn').onclick=exportJson;
 if('serviceWorker' in navigator){navigator.serviceWorker.register(`./sw.js?v=${CACHE_VERSION}`).then(r=>r.update()).catch(()=>{})}
 render();navigate('overview');
 setTimeout(()=>syncTatraCloud(true).catch(()=>{}),700);

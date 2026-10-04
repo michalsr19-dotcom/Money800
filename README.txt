@@ -1,5 +1,14 @@
-Money800 v5.2
-- pestré jedlá bez polievok, kuracie len občas
-- žiadne ukladanie minulých rozpočtových období
-- reset pri výplate vymaže staré výdavky, ale zachová Tatra Sync, kategórie a nastavenia
-- Google Apps Script ani Sheet netreba meniť
+Money800 v5.3
+
+Novinky:
+- centrum nezaradených platieb
+- pravidlá obchodníkov
+- ciele šetrenia
+- návrhy možných predplatných
+- kalendár výdavkov
+- dnešný súhrn, top obchodník a najväčší nákup
+- export CSV a JSON
+- filtre receptov: lacné, rýchle, cestoviny, pizza, syrové, zemiaky, kuracie, snack
+- Tatra Sync a Google Sheet ostávajú bez zmeny
+
+Nahraj všetky súbory na GitHub Pages.
