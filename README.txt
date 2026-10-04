@@ -1,12 +1,5 @@
-Money800 v5.1
-
-Novinky:
-- samostatný obed a večera každý deň
-- mäso iba kuracie; zelenina nie je povinná
-- orientačné ceny porcií kalibrované na bežné ceny SK supermarketov 10/2026
-- WOLT sa automaticky zaraďuje do kategórie Jedlo
-- nákupný zoznam spája obed + večeru
-- Tatra Sync / Google Sheet / Apps Script sa nemenia
-- zachováva existujúce localStorage vrátane Sync URL a Sync kľúča
-
-Nahraj všetky súbory do existujúceho GitHub Pages repozitára Money800.
+Money800 v5.2
+- pestré jedlá bez polievok, kuracie len občas
+- žiadne ukladanie minulých rozpočtových období
+- reset pri výplate vymaže staré výdavky, ale zachová Tatra Sync, kategórie a nastavenia
+- Google Apps Script ani Sheet netreba meniť

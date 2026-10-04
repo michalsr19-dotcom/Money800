@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=13" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=13" />
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="manifest" href="manifest.webmanifest?v=14" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=14" />
+  <link rel="stylesheet" href="styles.css?v=14" />
   <title>Money800</title>
 </head>
 <body>
@@ -76,15 +76,15 @@
             <div id="topMerchants" class="rank-list"></div>
           </div>
           <div class="analytics-card">
-            <div class="section-head compact-head"><div><h2>Tempo vs. minulé obdobie</h2><div class="section-note">Porovnanie priemeru na deň.</div></div></div>
-            <div id="trendSummary" class="trend-box"></div>
+            <div class="section-head compact-head"><div><h2>Najdrahší deň</h2><div class="section-note">Len z aktuálneho obdobia, bez ukladania starých období.</div></div></div>
+            <div id="currentPeriodHighlight" class="trend-box"></div>
           </div>
         </section>
 
         <section class="section quick-actions">
           <button class="action-card" id="overviewAddBtn"><span>＋</span><b>Pridať výdavok</b><small>Hotovosť alebo ručný záznam</small></button>
           <button class="action-card" data-nav="tatra"><span>🏦</span><b>Tatra Sync</b><small>Gmail → Sheet → Money800</small></button>
-          <button class="action-card" data-nav="food"><span>🍗</span><b>Dnešná večera</b><small id="recipeActionText">Fitness tip podľa rozpočtu</small></button>
+          <button class="action-card" data-nav="food"><span>🍝</span><b>Dnešné jedlá</b><small id="recipeActionText">Náhodný mix podľa rozpočtu</small></button>
         </section>
       </section>
 
@@ -104,7 +104,7 @@
 
       <section class="page" data-page="food">
         <div class="page-title-row">
-          <div><h2>Jedlo</h2><p>Dva samostatné tipy na každý deň: obed a večera. Mäso iba kuracie; zelenina nie je povinná.</p></div>
+          <div><h2>Jedlo</h2><p>Každý deň iný obed a večera. Bez polievok, bez iného mäsa; kuracie len občas. Veľa cestovín, syra, pizze, vajec, zemiakov a aj voľnejších jedál.</p></div>
           <div class="budget-badge" id="foodDailyBadge">0 €/deň</div>
         </div>
 
@@ -192,7 +192,7 @@
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.1</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.2</span></div>
 
         <section class="settings-card">
           <div class="settings-grid settings-grid-two">
@@ -214,15 +214,10 @@
           <div id="plannedEditor" class="planned-list"></div>
         </section>
 
-        <section class="section history-card">
-          <div class="section-head"><div><h2>História období</h2><div class="section-note">Po resete pri výplate sa obdobie uloží na porovnanie.</div></div></div>
-          <div id="historyList" class="history-list"></div>
-        </section>
-
-        <section class="reset-card">
+                <section class="reset-card">
           <h3>💰 Prišla výplata</h3>
           <p id="currentPeriodSummary">Aktuálne obdobie</p>
-          <p>Spustí nové rozpočtové obdobie, ale <b>ponechá Tatra Sync, kategórie, pravidlá obchodníkov a históriu</b>.</p>
+          <p>Vymaže výdavky z končiaceho obdobia a začne od nuly. <b>Tatra Sync, Sync kľúč, kategórie, plánované platby a pravidlá obchodníkov zostanú.</b> Staré obdobie sa neukladá.</p>
           <button class="danger-btn wide" id="paydayResetBtn">Začať nové obdobie</button>
         </section>
       </section>
@@ -275,6 +270,6 @@
     <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createPlannedBtn" value="default">Pridať</button></menu>
   </form></dialog>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>
