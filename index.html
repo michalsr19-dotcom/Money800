@@ -7,18 +7,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=6" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=6" />
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="manifest" href="manifest.webmanifest?v=7" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=7" />
+  <link rel="stylesheet" href="styles.css?v=7" />
   <title>Money800</title>
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow" id="monthLabel">Tento mesiac</div>
+        <div class="eyebrow" id="monthLabel">Dnes</div>
         <h1>Money800</h1>
         <div class="subline">Rozpočet, jedlo a Tatra B-mail na jednom mieste</div>
+        <div class="period-line" id="periodLabel">Rozpočtové obdobie</div>
       </div>
       <button class="icon-btn" id="quickSettingsBtn" aria-label="Nastavenia">⚙️</button>
     </header>
@@ -46,7 +47,7 @@
 
         <section class="insight-card" id="forecastCard">
           <div>
-            <div class="insight-label">Odhad na konci mesiaca</div>
+            <div class="insight-label">Odhad na konci obdobia</div>
             <div class="insight-value" id="forecastValue">0 €</div>
             <div class="insight-copy" id="forecastCopy">Odhad sa vypočíta z doterajšieho tempa a plánovaných položiek.</div>
           </div>
@@ -70,7 +71,7 @@
 
       <section class="page" data-page="expenses">
         <div class="page-title-row">
-          <div><h2>Výdavky</h2><p>Všetky platby za aktuálny mesiac. Každú môžeš otvoriť a opraviť kategóriu, sumu alebo názov.</p></div>
+          <div><h2>Výdavky</h2><p>Všetky platby od poslednej výplaty/resetu. Každú môžeš otvoriť a opraviť kategóriu, sumu alebo názov.</p></div>
           <button class="primary compact" id="expensesAddBtn">＋ Pridať</button>
         </div>
         <div class="filter-row">
@@ -95,7 +96,7 @@
         </section>
 
         <section class="recipe-card">
-          <div class="recipe-topline"><span class="recipe-day">Dnešný tip</span><span class="fit-badge" id="recipeFitBadge">V limite</span></div>
+          <div class="recipe-topline"><span class="recipe-day" id="recipeDayLabel">Dnešný tip</span><span class="fit-badge" id="recipeFitBadge">V limite</span></div>
           <div class="recipe-hero"><div class="recipe-icon" id="recipeIcon">🍗</div><div><h3 id="recipeName">Kuracie s ryžou</h3><div class="recipe-macros" id="recipeMacros">~3,50 € · 650 kcal · 50 g bielkovín</div></div></div>
           <div class="recipe-grid"><div><h4>Suroviny</h4><ul id="recipeIngredients"></ul></div><div><h4>Postup</h4><ol id="recipeSteps"></ol></div></div>
           <div class="recipe-actions">
@@ -139,7 +140,7 @@
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Tu meníš celkový rozpočet aj každý limit zvlášť.</p></div><span class="version-pill">v3.1</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Tu meníš celkový rozpočet aj každý limit zvlášť.</p></div><span class="version-pill">v3.2</span></div>
 
         <section class="settings-card">
           <div class="settings-grid">
@@ -155,6 +156,14 @@
           <div class="section-head"><div><h2>Rozpočty kategórií</h2><div class="section-note">Napr. Jedlo 300 → 350 €, Tankovanie 90 → 110 €.</div></div><button class="link-btn" id="addCategoryBtn">＋ Nová</button></div>
           <div id="categoryEditor" class="cats-editor"></div>
           <button class="primary wide" id="saveCategoriesBtn">Uložiť kategórie</button>
+        </section>
+
+
+        <section class="section settings-card payday-zone">
+          <h3>Nová výplata / nové obdobie</h3>
+          <p class="settings-help">Keď ti príde výplata, týmto vynuluješ aktuálne výdavky a zaplatené prepínače. Rozpočet, kategórie a naučené pravidlá obchodov zostanú zachované.</p>
+          <div class="period-summary" id="currentPeriodSummary"></div>
+          <button class="primary wide" id="paydayResetBtn">💰 Prišla výplata – začať nové obdobie</button>
         </section>
 
         <section class="section settings-card danger-zone">
@@ -212,6 +221,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

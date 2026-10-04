@@ -1,17 +1,10 @@
-Money800 v3.1
+Money800 v3.2
 
-Nové: kontrola a úprava každej transakcie, presun medzi kategóriami, oprava sumy/názvu a voliteľné zapamätanie kategórie pre rovnakého obchodníka.
+Novinky:
+- aktuálny dátum a dátum/čas pri každej transakcii
+- rozpočtové obdobie od poslednej výplaty/resetu
+- tlačidlo „Prišla výplata“: vynuluje výdavky, prepínače a nákupný zoznam, ale ponechá rozpočet, kategórie a naučené pravidlá obchodov
+- denný limit a odhad sa rátajú pre 30-dňové rozpočtové obdobie
+- zachované Tatra B-mail testy, recepty, úpravy transakcií a kategórií
 
-Money800 v3.0
-
-NAHRATIE NA GITHUB PAGES
-1. Rozbaľ ZIP.
-2. V repozitári Money800 klikni Add file -> Upload files.
-3. Nahraj VŠETKY súbory z tohto priečinka a potvrď Commit changes.
-4. Počkaj 1-2 minúty.
-5. Otvor https://michalsr19-dotcom.github.io/Money800/?v=5 v Safari.
-6. Ak máš starú ikonu Money800 na ploche a stále ukazuje starú verziu, odstráň iba ikonu z plochy a pridaj stránku znova cez Safari -> Zdieľať -> Pridať na plochu.
-
-Verziu spoznáš podľa Nastavenia -> v3.0.
-
-Poznámka: Dáta sa ukladajú lokálne v Safari/localStorage. GitHub nevidí tvoje transakcie.
+Nahraj všetky súbory do koreňa GitHub repozitára Money800 a potvrď Commit changes.
