@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Money800" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Money800</title>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow" id="monthLabel">Tento mesiac</div>
+        <h1>Money800</h1>
+      </div>
+      <button class="icon-btn" id="settingsBtn" aria-label="Nastavenia">⚙️</button>
+    </header>
+
+    <section class="hero-card">
+      <div class="hero-row">
+        <div>
+          <div class="muted">Zostáva z rozpočtu</div>
+          <div class="hero-amount" id="remainingAmount">800,00 €</div>
+        </div>
+        <div class="pill" id="spentPill">Minuté 0 €</div>
+      </div>
+      <div class="progress"><div id="budgetProgress"></div></div>
+      <div class="hero-grid">
+        <div><span class="muted">Denný limit</span><strong id="dailyLimit">0 €</strong></div>
+        <div><span class="muted">Odložiť</span><strong id="savingsGoal">150 €</strong></div>
+        <div><span class="muted">Voľné po úspore</span><strong id="freeAfterSavings">650 €</strong></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Kategórie</h2><button class="link-btn" id="editCatsBtn">Upraviť</button></div>
+      <div id="categoryList" class="category-list"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Posledné výdavky</h2><button class="link-btn" id="clearBtn">Vymazať testy</button></div>
+      <div id="emptyState" class="empty-state">Zatiaľ tu nič nie je. Pridaj testovací nákup alebo skutočný výdavok.</div>
+      <div id="transactions" class="tx-list"></div>
+    </section>
+
+    <div class="fab-row">
+      <button class="secondary" id="testBtn">🧪 Test Tatra platby</button>
+      <button class="primary" id="addBtn">＋ Pridať výdavok</button>
+    </div>
+
+    <section class="section import-card">
+      <div class="section-head"><h2>Import z B-mailu</h2></div>
+      <p class="muted small">Keď nám príde prvý reálny B-mail z Tatra banky, parser upravíme presne podľa jeho textu. Už teraz si môžeš vyskúšať vložiť ľubovoľný text s cenou a obchodom.</p>
+      <textarea id="emailText" placeholder="Sem neskôr vložíme text e-mailu z Tatra banky…"></textarea>
+      <button class="secondary wide" id="parseBtn">Rozpoznať e-mail</button>
+      <div id="parseResult" class="parse-result"></div>
+    </section>
+
+    <footer>Údaje zostávajú iba v tomto zariadení (localStorage).</footer>
+  </main>
+
+  <dialog id="addDialog">
+    <form method="dialog" class="dialog-card" id="addForm">
+      <div class="dialog-head"><h3>Pridať výdavok</h3><button class="icon-btn" value="cancel">✕</button></div>
+      <label>Suma (€)<input id="amountInput" inputmode="decimal" placeholder="12,50" required /></label>
+      <label>Obchod / popis<input id="merchantInput" placeholder="LIDL" required /></label>
+      <label>Kategória<select id="categoryInput"></select></label>
+      <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="saveTxBtn" value="default">Uložiť</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="dialog-card" id="settingsForm">
+      <div class="dialog-head"><h3>Nastavenia</h3><button class="icon-btn" value="cancel">✕</button></div>
+      <label>Mesačný rozpočet (€)<input id="budgetInput" inputmode="decimal" /></label>
+      <label>Cieľ odložiť (€)<input id="savingsInput" inputmode="decimal" /></label>
+      <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="saveSettingsBtn" value="default">Uložiť</button></menu>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
