@@ -7,18 +7,18 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=10" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=10" />
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="manifest" href="manifest.webmanifest?v=12" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=12" />
+  <link rel="stylesheet" href="styles.css?v=12" />
   <title>Money800</title>
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow" id="monthLabel">Dnes</div>
+        <div class="eyebrow" id="todayLabel">Dnes</div>
         <h1>Money800</h1>
-        <div class="subline">Rozpočet, jedlo a Tatra B-mail na jednom mieste</div>
+        <div class="subline">Rozpočet, Tatra platby a jedlo podľa denného limitu</div>
         <div class="period-line" id="periodLabel">Rozpočtové obdobie</div>
       </div>
       <button class="icon-btn" id="quickSettingsBtn" aria-label="Nastavenia">⚙️</button>
@@ -39,44 +39,63 @@
           </div>
           <div class="progress"><div id="budgetProgress"></div></div>
           <div class="hero-grid">
-            <div class="mini-card"><span>Denný bezpečný limit</span><strong id="dailyLimit">0 €</strong></div>
-            <div class="mini-card"><span>Cieľ odložiť</span><strong id="savingsGoal">150 €</strong></div>
-            <div class="mini-card"><span>Voľné po úspore</span><strong id="freeAfterSavings">650 €</strong></div>
+            <div class="mini-card"><span>Denný bezpečný limit</span><strong id="dailyLimit">0 €</strong><small>po úspore a plánovaných platbách</small></div>
+            <div class="mini-card"><span>Cieľ odložiť</span><strong id="savingsGoal">150 €</strong><small>nedotknuté peniaze</small></div>
+            <div class="mini-card"><span>Reálne voľné</span><strong id="realFree">0 €</strong><small id="plannedSummaryMini">bez rezervovaných platieb</small></div>
           </div>
         </section>
 
         <section class="insight-card" id="forecastCard">
           <div>
             <div class="insight-label">Odhad na konci obdobia</div>
-            <div class="insight-value" id="forecastValue">0 €</div>
-            <div class="insight-copy" id="forecastCopy">Odhad sa vypočíta z doterajšieho tempa a plánovaných položiek.</div>
+            <div class="insight-value" id="forecastValue">—</div>
+            <div class="insight-copy" id="forecastCopy">Na spoľahlivejší odhad treba pár dní a viac platieb.</div>
           </div>
-          <div class="forecast-ring" id="forecastRing"><span id="forecastPct">0%</span></div>
+          <div class="forecast-ring" id="forecastRing"><span id="forecastPct">—</span></div>
         </section>
 
         <section class="section">
           <div class="section-head">
-            <div><h2>Kategórie</h2><div class="section-note">Limity môžeš kedykoľvek meniť v Nastaveniach.</div></div>
+            <div><h2>Plánované platby</h2><div class="section-note">Money800 ich odpočíta z bezpečného limitu ešte pred zaplatením.</div></div>
+            <button class="link-btn" data-nav="settings">Spravovať</button>
+          </div>
+          <div id="plannedOverview" class="planned-list"></div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div><h2>Kategórie</h2><div class="section-note">Pri 75 %, 90 % a 100 % sa karta zvýrazní.</div></div>
             <button class="link-btn" data-nav="settings">Upraviť</button>
           </div>
           <div id="categoryList" class="category-list"></div>
         </section>
 
+        <section class="section two-col-section">
+          <div class="analytics-card">
+            <div class="section-head compact-head"><div><h2>Kam miznú peniaze</h2><div class="section-note">Najväčší obchodníci v tomto období.</div></div></div>
+            <div id="topMerchants" class="rank-list"></div>
+          </div>
+          <div class="analytics-card">
+            <div class="section-head compact-head"><div><h2>Tempo vs. minulé obdobie</h2><div class="section-note">Porovnanie priemeru na deň.</div></div></div>
+            <div id="trendSummary" class="trend-box"></div>
+          </div>
+        </section>
+
         <section class="section quick-actions">
           <button class="action-card" id="overviewAddBtn"><span>＋</span><b>Pridať výdavok</b><small>Hotovosť alebo ručný záznam</small></button>
-          <button class="action-card" data-nav="tatra"><span>🏦</span><b>Tatra B-mail</b><small>Import a test bankového e-mailu</small></button>
-          <button class="action-card" data-nav="food"><span>🍗</span><b>Dnešné jedlo</b><small id="recipeActionText">Fitness tip podľa rozpočtu</small></button>
+          <button class="action-card" data-nav="tatra"><span>🏦</span><b>Tatra Sync</b><small>Gmail → Sheet → Money800</small></button>
+          <button class="action-card" data-nav="food"><span>🍗</span><b>Dnešná večera</b><small id="recipeActionText">Fitness tip podľa rozpočtu</small></button>
         </section>
       </section>
 
       <section class="page" data-page="expenses">
         <div class="page-title-row">
-          <div><h2>Výdavky</h2><p>Všetky platby od poslednej výplaty/resetu. Každú môžeš otvoriť a opraviť kategóriu, sumu alebo názov.</p></div>
+          <div><h2>Výdavky</h2><p>Každú transakciu môžeš skontrolovať, opraviť alebo presunúť do inej kategórie.</p></div>
           <button class="primary compact" id="expensesAddBtn">＋ Pridať</button>
         </div>
         <div class="filter-row">
           <select id="txCategoryFilter"></select>
-          <button class="secondary compact" id="clearTxBtn">Vymazať všetky</button>
+          <input id="txSearch" class="search-input" placeholder="Hľadať obchod…" />
         </div>
         <div id="expenseSummary" class="summary-strip"></div>
         <div id="emptyState" class="empty-state">Zatiaľ tu nič nie je.</div>
@@ -85,61 +104,63 @@
 
       <section class="page" data-page="food">
         <div class="page-title-row">
-          <div><h2>Jedlo</h2><p>Každý deň iný fitness recept s približnou cenou.</p></div>
+          <div><h2>Jedlo</h2><p>Obed v práci + každý deň iná fitness večera. Zelenina je väčšinou len voliteľná.</p></div>
           <div class="budget-badge" id="foodDailyBadge">0 €/deň</div>
         </div>
 
         <section class="food-stats">
           <div><span>Zostáva na jedlo</span><strong id="foodRemaining">0 €</strong></div>
-          <div><span>Dnes približne</span><strong id="foodDaily">0 €</strong></div>
+          <div><span>Denný food limit</span><strong id="foodDaily">0 €</strong></div>
           <div><span>Minuté na jedlo</span><strong id="foodSpent">0 €</strong></div>
         </section>
 
-        <section class="recipe-card">
-          <div class="recipe-topline"><span class="recipe-day" id="recipeDayLabel">Dnešný tip</span><span class="fit-badge" id="recipeFitBadge">V limite</span></div>
-          <div class="recipe-hero"><div class="recipe-icon" id="recipeIcon">🍗</div><div><h3 id="recipeName">Kuracie s ryžou</h3><div class="recipe-macros" id="recipeMacros">~3,50 € · 650 kcal · 50 g bielkovín</div></div></div>
-          <div class="recipe-grid"><div><h4>Suroviny</h4><ul id="recipeIngredients"></ul></div><div><h4>Postup</h4><ol id="recipeSteps"></ol></div></div>
-          <div class="recipe-actions">
-            <button class="secondary" id="prevRecipeBtn">← Iný tip</button>
-            <button class="primary" id="addRecipeCostBtn">Pridať cenu do Jedla</button>
-            <button class="secondary" id="nextRecipeBtn">Ďalší →</button>
-          </div>
+        <section class="daily-plan-card">
+          <div class="daily-plan-title"><div><span class="big-emoji">🥡</span><b>Obed v práci</b></div><strong id="workLunchPriceLabel">6,00 €</strong></div>
+          <p>Jedným ťuknutím zapíšeš bežný objednaný obed.</p>
+          <button class="primary wide" id="workLunchBtn">Pridať obed</button>
         </section>
 
-        <section class="work-lunch-card">
-          <div><span class="big-emoji">🥡</span><div><h3>Obed v práci</h3><p>Jedným ťuknutím zapíšeš svoj bežný objednaný obed.</p></div></div>
-          <button class="primary" id="workLunchBtn">Pridať 6,00 €</button>
+        <section class="recipe-card">
+          <div class="recipe-topline"><span class="recipe-day" id="recipeDayLabel">Dnešná večera</span><span class="fit-badge" id="recipeFitBadge">V limite</span></div>
+          <div class="recipe-hero"><div class="recipe-icon" id="recipeIcon">🍗</div><div><h3 id="recipeName">Kuracie s ryžou</h3><div class="recipe-macros" id="recipeMacros">~3,50 € · 650 kcal · 50 g bielkovín · 30 min</div></div></div>
+          <div class="meal-budget-line" id="mealBudgetLine"></div>
+          <div class="recipe-grid"><div><h4>Suroviny na 1 porciu</h4><ul id="recipeIngredients"></ul></div><div><h4>Presný postup</h4><ol id="recipeSteps"></ol></div></div>
+          <div class="recipe-tip" id="recipeTip"></div>
+          <div class="recipe-actions">
+            <button class="secondary" id="prevRecipeBtn">← Iný tip</button>
+            <button class="primary" id="addRecipeCostBtn">Pridať cenu večere</button>
+            <button class="secondary" id="nextRecipeBtn">Ďalší →</button>
+          </div>
+          <button class="secondary wide" id="cheaperRecipeBtn">Ukáž lacnejšiu večeru</button>
         </section>
 
         <section class="section">
-          <div class="section-head"><div><h2>Nákupný zoznam</h2><div class="section-note">Suroviny z dnešného receptu si môžeš odškrtávať.</div></div><button class="link-btn" id="resetShoppingBtn">Obnoviť</button></div>
+          <div class="section-head"><div><h2>Plán na 5 večerí</h2><div class="section-note">Päť rôznych večerí od dneška a približná cena spolu.</div></div></div>
+          <div id="fiveDayPlan" class="five-day-plan"></div>
+        </section>
+
+        <section class="section">
+          <div class="section-head"><div><h2>Nákupný zoznam</h2><div class="section-note">Suroviny z dnešnej večere si môžeš odškrtávať.</div></div><button class="link-btn" id="resetShoppingBtn">Obnoviť</button></div>
           <div id="shoppingList" class="shopping-list"></div>
         </section>
       </section>
 
       <section class="page" data-page="tatra">
         <div class="page-title-row">
-          <div><h2>Tatra Sync</h2><p>B-mail sa spracuje v Gmaili cez Google Apps Script a Money800 si nové platby stiahne pri otvorení alebo po stlačení synchronizácie.</p></div>
+          <div><h2>Tatra Sync</h2><p>Tvoje existujúce pripojenie ostáva uložené. Túto časť netreba znovu nastavovať pri aktualizácii appky.</p></div>
           <span class="status-dot" id="cloudStatusDot">● nepripojené</span>
         </div>
 
         <section class="tatra-card cloud-sync-card">
-          <div class="tatra-head"><span class="bank-icon">☁️</span><div><h3>Automatická synchronizácia</h3><p>Sem vložíš URL nasadeného Apps Scriptu a súkromný Sync kľúč z listu Config.</p></div></div>
-          <label class="cloud-label">Apps Script Web App URL
-            <input id="syncUrlInput" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec" />
-          </label>
-          <label class="cloud-label">Sync kľúč
-            <input id="syncKeyInput" type="password" autocomplete="off" placeholder="kľúč z Money800_Data → Config" />
-          </label>
-          <div class="button-row">
-            <button class="secondary" id="saveSyncBtn">Uložiť pripojenie</button>
-            <button class="primary" id="syncNowBtn">Synchronizovať teraz</button>
-          </div>
+          <div class="tatra-head"><span class="bank-icon">☁️</span><div><h3>Automatická synchronizácia</h3><p>Money800 pri otvorení stiahne nové platby z Google Sheetu cez tvoj existujúci Apps Script.</p></div></div>
+          <label class="cloud-label">Apps Script Web App URL<input id="syncUrlInput" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec" /></label>
+          <label class="cloud-label">Sync kľúč<input id="syncKeyInput" type="password" autocomplete="off" placeholder="uložený súkromný kľúč" /></label>
+          <div class="button-row"><button class="secondary" id="saveSyncBtn">Uložiť pripojenie</button><button class="primary" id="syncNowBtn">Synchronizovať teraz</button></div>
           <div class="sync-meta" id="syncMeta">Zatiaľ nesynchronizované.</div>
         </section>
 
         <section class="tatra-card">
-          <div class="tatra-head"><span class="bank-icon">🧪</span><div><h3>Test Tatra platby</h3><p>Test zostáva zachovaný. Používa rovnaký formát ako reálny B-mail.</p></div></div>
+          <div class="tatra-head"><span class="bank-icon">🧪</span><div><h3>Test Tatra platby</h3><p>Test používa rovnaký formát ako reálny B-mail.</p></div></div>
           <div class="button-row"><button class="secondary" id="makeTestEmailBtn">Vytvoriť testovací B-mail</button><button class="primary" id="testAndImportBtn">Test + pridať platbu</button></div>
         </section>
 
@@ -149,20 +170,14 @@
           <button class="secondary wide" id="parseBtn">Rozpoznať e-mail</button>
           <div id="parseResult" class="parse-result"></div>
         </section>
-
-        <section class="tatra-info">
-          <h3>Ako to funguje</h3>
-          <div class="flow"><span>🏦 Tatra</span><b>→</b><span>📧 Gmail</span><b>→</b><span>⚙️ Apps Script</span><b>→</b><span>📊 Sheet</span><b>→</b><span>📱 Money800</span></div>
-          <p>Google Apps Script kontroluje B-maily na pozadí. Money800 potom načíta iba sumu, obchodníka, dátum a ID správy. Rovnakú platbu nepridá dvakrát a tvoje vlastné pravidlá kategórií majú prednosť.</p>
-        </section>
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Tu meníš celkový rozpočet aj každý limit zvlášť.</p></div><span class="version-pill">v4.0</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.0</span></div>
 
         <section class="settings-card">
           <div class="settings-grid">
-            <label>Mesačný rozpočet (€)<input id="budgetInput" inputmode="decimal" /></label>
+            <label>Rozpočet na obdobie (€)<input id="budgetInput" inputmode="decimal" /></label>
             <label>Cieľ odložiť (€)<input id="savingsInput" inputmode="decimal" /></label>
             <label>Obed v práci (€)<input id="workLunchInput" inputmode="decimal" /></label>
           </div>
@@ -176,69 +191,72 @@
           <button class="primary wide" id="saveCategoriesBtn">Uložiť kategórie</button>
         </section>
 
-
-        <section class="section settings-card payday-zone">
-          <h3>Nová výplata / nové obdobie</h3>
-          <p class="settings-help">Keď ti príde výplata, týmto vynuluješ aktuálne výdavky a zaplatené prepínače. Rozpočet, kategórie a naučené pravidlá obchodov zostanú zachované.</p>
-          <div class="period-summary" id="currentPeriodSummary"></div>
-          <button class="primary wide" id="paydayResetBtn">💰 Prišla výplata – začať nové obdobie</button>
+        <section class="section">
+          <div class="section-head"><div><h2>Plánované platby</h2><div class="section-note">Rezervujú peniaze v bezpečnom limite, kým ich neoznačíš ako zaplatené.</div></div><button class="link-btn" id="addPlannedBtn">＋ Pridať</button></div>
+          <div id="plannedEditor" class="planned-list"></div>
         </section>
 
-        <section class="section settings-card danger-zone">
-          <h3>Údržba</h3>
-          <button class="secondary wide" id="resetAppBtn">Obnoviť appku na pôvodné nastavenia</button>
+        <section class="section history-card">
+          <div class="section-head"><div><h2>História období</h2><div class="section-note">Po resete pri výplate sa obdobie uloží na porovnanie.</div></div></div>
+          <div id="historyList" class="history-list"></div>
+        </section>
+
+        <section class="reset-card">
+          <h3>💰 Prišla výplata</h3>
+          <p id="currentPeriodSummary">Aktuálne obdobie</p>
+          <p>Spustí nové rozpočtové obdobie, ale <b>ponechá Tatra Sync, kategórie, pravidlá obchodníkov a históriu</b>.</p>
+          <button class="danger-btn wide" id="paydayResetBtn">Začať nové obdobie</button>
         </section>
       </section>
     </main>
   </div>
 
   <nav class="bottom-nav">
-    <button class="nav-item active" data-nav="overview"><span>⌂</span><small>Prehľad</small></button>
-    <button class="nav-item" data-nav="expenses"><span>↕</span><small>Výdavky</small></button>
-    <button class="nav-item" data-nav="food"><span>🍗</span><small>Jedlo</small></button>
-    <button class="nav-item" data-nav="tatra"><span>🏦</span><small>Tatra</small></button>
-    <button class="nav-item" data-nav="settings"><span>⚙︎</span><small>Nastavenia</small></button>
+    <button class="nav-item active" data-nav="overview"><span>⌂</span><b>Prehľad</b></button>
+    <button class="nav-item" data-nav="expenses"><span>↕️</span><b>Výdavky</b></button>
+    <button class="nav-item" data-nav="food"><span>🍗</span><b>Jedlo</b></button>
+    <button class="nav-item" data-nav="tatra"><span>🏦</span><b>Tatra</b></button>
+    <button class="nav-item" data-nav="settings"><span>⚙️</span><b>Nastavenia</b></button>
   </nav>
 
-  <dialog id="addDialog">
-    <form method="dialog" class="dialog-card" id="addForm">
-      <div class="dialog-head"><h3>Pridať výdavok</h3><button class="icon-btn" value="cancel">✕</button></div>
-      <label>Suma (€)<input id="amountInput" inputmode="decimal" placeholder="12,50" required /></label>
-      <label>Obchod / popis<input id="merchantInput" placeholder="LIDL" required /></label>
-      <label>Kategória<select id="categoryInput"></select></label>
-      <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="saveTxBtn" value="default">Uložiť</button></menu>
-    </form>
-  </dialog>
+  <div id="toast" class="toast"></div>
 
-  <dialog id="editTxDialog">
-    <form method="dialog" class="dialog-card" id="editTxForm">
-      <div class="dialog-head"><h3>Skontrolovať transakciu</h3><button class="icon-btn" value="cancel">✕</button></div>
-      <div class="dialog-note">Ak banka zaradí platbu zle, tu ju môžeš presunúť do správnej kategórie. Zmena sa hneď premietne do rozpočtu.</div>
-      <label>Suma (€)<input id="editTxAmount" inputmode="decimal" /></label>
-      <label>Obchod / popis<input id="editTxMerchant" /></label>
-      <label>Kategória<select id="editTxCategory"></select></label>
-      <label class="remember-row"><input type="checkbox" id="editTxRemember" /> <span>Zapamätať túto kategóriu pre rovnakého obchodníka nabudúce</span></label>
-      <div class="dialog-source" id="editTxSource"></div>
-      <menu class="tx-edit-menu">
-        <button class="delete-wide" id="editTxDelete" type="button">Vymazať transakciu</button>
-        <button class="secondary" value="cancel">Zrušiť</button>
-        <button class="primary" id="editTxSave" value="default">Uložiť zmenu</button>
-      </menu>
-    </form>
-  </dialog>
+  <dialog id="addDialog"><form method="dialog" class="dialog-card" id="addForm">
+    <div class="dialog-head"><h3>Pridať výdavok</h3><button class="icon-btn" value="cancel">✕</button></div>
+    <label>Suma (€)<input id="amountInput" inputmode="decimal" placeholder="12,50" required /></label>
+    <label>Obchod / popis<input id="merchantInput" placeholder="LIDL" required /></label>
+    <label>Kategória<select id="categoryInput"></select></label>
+    <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="saveTxBtn" value="default">Uložiť</button></menu>
+  </form></dialog>
 
-  <dialog id="categoryDialog">
-    <form method="dialog" class="dialog-card" id="categoryForm">
-      <div class="dialog-head"><h3>Nová kategória</h3><button class="icon-btn" value="cancel">✕</button></div>
-      <label>Emoji<input id="newCatIcon" value="💳" maxlength="4" /></label>
-      <label>Názov<input id="newCatName" placeholder="Napr. Oblečenie" required /></label>
-      <label>Limit (€)<input id="newCatLimit" inputmode="decimal" placeholder="50" required /></label>
-      <label>Režim<select id="newCatType"><option value="spend">Bežné výdavky</option><option value="toggle">Zaplatené / nezaplatené</option></select></label>
-      <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createCategoryBtn" value="default">Pridať</button></menu>
-    </form>
-  </dialog>
+  <dialog id="editTxDialog"><form method="dialog" class="dialog-card" id="editTxForm">
+    <div class="dialog-head"><h3>Upraviť transakciu</h3><button class="icon-btn" value="cancel">✕</button></div>
+    <div class="dialog-note" id="editTxSource"></div>
+    <label>Suma (€)<input id="editTxAmount" inputmode="decimal" required /></label>
+    <label>Obchod / popis<input id="editTxMerchant" required /></label>
+    <label>Kategória<select id="editTxCategory"></select></label>
+    <label class="check-row"><input type="checkbox" id="editTxRemember" /> <span>Zapamätať túto kategóriu pre rovnakého obchodníka nabudúce</span></label>
+    <menu class="three-menu"><button class="danger-btn" type="button" id="editTxDelete">Vymazať</button><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="editTxSave" value="default">Uložiť</button></menu>
+  </form></dialog>
 
-  <div id="toast" class="toast" role="status"></div>
-  <script src="app.js?v=10"></script>
+  <dialog id="categoryDialog"><form method="dialog" class="dialog-card" id="categoryForm">
+    <div class="dialog-head"><h3>Nová kategória</h3><button class="icon-btn" value="cancel">✕</button></div>
+    <label>Názov<input id="newCatName" placeholder="Elektronika" required /></label>
+    <label>Ikona<input id="newCatIcon" value="💳" /></label>
+    <label>Limit (€)<input id="newCatLimit" inputmode="decimal" placeholder="50" required /></label>
+    <label>Režim<select id="newCatType"><option value="spend">Bežné výdavky</option><option value="toggle">Zaplatené / nezaplatené</option></select></label>
+    <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createCategoryBtn" value="default">Pridať</button></menu>
+  </form></dialog>
+
+  <dialog id="plannedDialog"><form method="dialog" class="dialog-card" id="plannedForm">
+    <div class="dialog-head"><h3>Plánovaná platba</h3><button class="icon-btn" value="cancel">✕</button></div>
+    <label>Názov<input id="plannedName" placeholder="Telefón" required /></label>
+    <label>Suma (€)<input id="plannedAmount" inputmode="decimal" placeholder="25" required /></label>
+    <label>Kategória<select id="plannedCategory"></select></label>
+    <label>Deň v období (1–30)<input id="plannedDay" inputmode="numeric" placeholder="10" /></label>
+    <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createPlannedBtn" value="default">Pridať</button></menu>
+  </form></dialog>
+
+  <script src="app.js?v=12"></script>
 </body>
 </html>
