@@ -64,3 +64,20 @@ dialog{border:0;background:transparent;padding:0;width:min(94vw,580px)}dialog::b
 .smart-tip-action{border:0;border-radius:13px;background:linear-gradient(90deg,#74b7ff,#ad97ff);color:#111a2e;font-size:13px;font-weight:900;padding:11px 13px;text-align:center;flex-shrink:0}
 .smart-tip-footnote{color:#aab6d4;font-size:11px;line-height:1.38;text-align:right;max-width:240px}
 @media(max-width:500px){.smart-tip-card{padding:15px}.smart-tip-bottom{align-items:stretch;flex-direction:column}.smart-tip-action{width:100%}.smart-tip-footnote{text-align:left;max-width:100%}.smart-tip-copy h2{font-size:18px}}
+
+/* v5.6 — dnešný živý limit v jedinej karte s osobným tipom */
+.today-budget-card{margin-top:14px;padding:12px 13px;border-radius:17px;background:rgba(8,14,31,.42);border:1px solid rgba(255,255,255,.09)}
+.today-budget-head,.today-budget-footer,.today-budget-figures{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.today-budget-head span{font-size:13px;font-weight:850;color:#dce7ff}.today-budget-head strong{font-size:11px;color:#9de4c2}
+.today-budget-figures{margin-top:11px;align-items:flex-start}.today-budget-figures span{display:grid;gap:3px}
+.today-budget-figures span:last-child{text-align:right}.today-budget-figures b{font-size:20px;color:#fff;font-variant-numeric:tabular-nums}.today-budget-figures small{font-size:11px;color:#b2bfdc}
+.today-budget-track{height:8px;border-radius:12px;background:rgba(255,255,255,.10);overflow:hidden;margin-top:12px}
+.today-budget-track>div{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#57cda1,#80dcaf);transition:width .25s}
+.today-budget-footer{margin-top:8px;align-items:flex-start}.today-budget-footer>span{font-size:13px;font-weight:850;color:#c5f5db}.today-budget-footer>small{font-size:11px;color:#aeb8ce;text-align:right;max-width:50%}
+.today-budget-card[data-level="warning"]{border-color:rgba(255,195,96,.42);background:rgba(80,49,16,.22)}
+.today-budget-card[data-level="warning"] .today-budget-track>div{background:linear-gradient(90deg,#efba53,#e99342)}
+.today-budget-card[data-level="warning"] .today-budget-head strong,.today-budget-card[data-level="warning"] .today-budget-footer>span{color:#ffdc93}
+.today-budget-card[data-level="danger"]{border-color:rgba(255,103,132,.42);background:rgba(92,23,38,.24)}
+.today-budget-card[data-level="danger"] .today-budget-track>div{background:linear-gradient(90deg,#ff7e90,#f04469)}
+.today-budget-card[data-level="danger"] .today-budget-head strong,.today-budget-card[data-level="danger"] .today-budget-footer>span{color:#ffafbb}
+@media(max-width:380px){.today-budget-figures b{font-size:17px}.today-budget-footer{flex-direction:column}.today-budget-footer>small{max-width:none;text-align:left}}

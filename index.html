@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=17" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=17" />
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="manifest" href="manifest.webmanifest?v=18" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=18" />
+  <link rel="stylesheet" href="styles.css?v=18" />
   <title>Money800</title>
 </head>
 <body>
@@ -30,6 +30,12 @@
           <div class="smart-tip-top">
             <span class="smart-tip-kicker">✨ Osobný tip</span>
             <button type="button" class="smart-tip-next" id="nextSmartTipBtn" aria-label="Zobraziť ďalší tip">Ďalší tip <span aria-hidden="true">↻</span></button>
+          </div>
+          <div class="today-budget-card" id="todayBudgetCard" data-level="good" aria-label="Dnešné míňanie">
+            <div class="today-budget-head"><span>📅 Dnešný limit</span><strong id="todayBudgetState">V rámci limitu</strong></div>
+            <div class="today-budget-figures"><span><b id="todayBudgetSpent">0,00 €</b><small>dnes minuté</small></span><span><b id="todayBudgetReference">0,00 €</b><small>odporúčaný limit</small></span></div>
+            <div class="today-budget-track"><div id="todayBudgetMeter"></div></div>
+            <div class="today-budget-footer"><span id="todayBudgetRemaining">Ostáva 0,00 €</span><small>Po každej novej platbe sa prepočíta</small></div>
           </div>
           <div class="smart-tip-body">
             <div class="smart-tip-emoji" id="smartTipEmoji" aria-hidden="true">💡</div>
@@ -57,7 +63,7 @@
           </div>
           <div class="progress"><div id="budgetProgress"></div></div>
           <div class="hero-grid">
-            <div class="mini-card"><span>Denný bezpečný limit</span><strong id="dailyLimit">0 €</strong><small>po úspore a plánovaných platbách</small></div>
+            <div class="mini-card"><span>Nový denný priemer</span><strong id="dailyLimit">0 €</strong><small>po úspore a plánovaných platbách</small></div>
             <div class="mini-card"><span>Cieľ odložiť</span><strong id="savingsGoal">150 €</strong><small>nedotknuté peniaze</small></div>
             <div class="mini-card"><span>Reálne voľné</span><strong id="realFree">0 €</strong><small id="plannedSummaryMini">bez rezervovaných platieb</small></div>
           </div>
@@ -253,7 +259,7 @@
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.5</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.6</span></div>
 
         <section class="settings-card">
           <div class="settings-grid settings-grid-two">
@@ -369,6 +375,6 @@
     <label>Chcem odložiť (€)<input id="paydaySavingsInput" inputmode="decimal" /></label>
     <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" type="button" id="confirmPaydayBtn">Začať obdobie</button></menu>
   </form></dialog>
-  <script src="app.js?v=17"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

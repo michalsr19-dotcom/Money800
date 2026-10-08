@@ -1,5 +1,5 @@
-const APP_VERSION='5.5';
-const CACHE_VERSION='17';
+const APP_VERSION='5.6';
+const CACHE_VERSION='18';
 const BUDGET_PERIOD_DAYS=30;
 
 const DEFAULT_CATEGORIES=[
@@ -193,7 +193,7 @@ function addTx(amount,merchant,category,source='manual',fp=''){
   const a=Number(amount); if(!a||!merchant)return false; const f=fp||fingerprint(a,merchant);
   if(state.transactions.some(t=>t.fingerprint&&t.fingerprint===f)){toast('Táto platba už je pridaná.');return false}
   state.transactions.push({id:uid(),amount:a,merchant,category:category||autoCat(merchant),source,ts:Date.now(),period:periodKey(),fingerprint:f});
-  save();render();toast('Výdavok pridaný.');return true;
+  smartTipIndex=0;save();render();toast('Výdavok pridaný.');return true;
 }
 function addCloudTx(row){
   const externalId=String(row?.id||''); if(!externalId)return false;
@@ -228,7 +228,7 @@ function syncTatraCloud(silent=false){
     const cleanup=()=>{if(done)return;done=true;clearTimeout(timer);try{delete window[cb]}catch{}script.remove()};
     const timer=setTimeout(()=>{cleanup();setCloudStatus('chyba pripojenia','error');if(!silent)toast('Synchronizácia zlyhala.');resolve(false)},15000);
     window[cb]=(payload)=>{cleanup();if(!payload||payload.ok!==true){setCloudStatus(payload?.error==='unauthorized'?'zlý Sync kľúč':'chyba','error');if(!silent)toast(payload?.error==='unauthorized'?'Nesprávny Sync kľúč.':'Synchronizácia zlyhala.');resolve(false);return}
-      let added=0;for(const row of (payload.transactions||[]))if(addCloudTx(row))added++;state.settings.lastSync=Date.now();save();render();setCloudStatus('pripojené','ok');if(!silent)toast(added?`Pridané nové platby: ${added}`:'Žiadne nové platby.');resolve(true)};
+      let added=0;for(const row of (payload.transactions||[]))if(addCloudTx(row))added++;if(added)smartTipIndex=0;state.settings.lastSync=Date.now();save();render();setCloudStatus('pripojené','ok');if(!silent)toast(added?`Pridané nové platby: ${added}`:'Žiadne nové platby.');resolve(true)};
     const sep=url.includes('?')?'&':'?';script.src=`${url}${sep}key=${encodeURIComponent(key)}&callback=${encodeURIComponent(cb)}&_=${Date.now()}`;
     script.onerror=()=>{cleanup();setCloudStatus('chyba pripojenia','error');if(!silent)toast('Nepodarilo sa spojiť s Apps Scriptom.');resolve(false)};document.head.appendChild(script);
   });
@@ -264,6 +264,34 @@ function dayKey(ts){const d=new Date(ts);return `${d.getFullYear()}-${String(d.g
 function todayTransactions(){const k=dayKey(Date.now());return txPeriod().filter(t=>dayKey(t.ts)===k)}
 function biggestTx(){return txPeriod().slice().sort((a,b)=>Number(b.amount)-Number(a.amount))[0]||null}
 function safeDailyLimit(){const realFree=Number(state.settings.budget)-Number(state.settings.savings)-totalSpent()-pendingPlanned();return Math.max(0,realFree)/daysLeft()}
+
+/** Dnešný strop držíme na stabilnej hodnote v rámci dňa.
+ * Dnes minuté pripočítame späť k zostatku, aby sa po každej platbe
+ * neposunul zároveň čitateľ aj menovateľ indikátora. Cieľ úspor aj
+ * čakajúce plánované platby zostávajú odpočítané iba raz.
+ */
+function dailySpendingStatus(){
+  const remainingDays=Math.max(1,daysLeft());
+  const spentToday=todayTransactions().reduce((sum,t)=>sum+Math.max(0,Number(t.amount)||0),0);
+  const freeNow=Number(state.settings.budget)-Number(state.settings.savings)-totalSpent()-pendingPlanned();
+  const morningReference=Math.max(0,(freeNow+spentToday)/remainingDays);
+  const leftToday=morningReference-spentToday;
+  const percentage=morningReference>0?spentToday/morningReference*100:(spentToday>0?100:0);
+  const level=spentToday>0&&leftToday<=0?'danger':percentage>=90?'danger':percentage>=75?'warning':'good';
+  const tomorrowReference=remainingDays>1?Math.max(0,freeNow)/(remainingDays-1):0;
+  return {spentToday,morningReference,leftToday,percentage,level,tomorrowReference,remainingDays,freeNow};
+}
+function renderDailySpending(){
+  const s=dailySpendingStatus(),box=$('#todayBudgetCard');if(!box)return;
+  $('#todayBudgetSpent').textContent=fmt(s.spentToday);
+  $('#todayBudgetReference').textContent=fmt(s.morningReference);
+  $('#todayBudgetRemaining').textContent=s.leftToday<0?`Prekročené o ${fmt(-s.leftToday)}`:`Ostáva ${fmt(s.leftToday)}`;
+  $('#todayBudgetMeter').style.width=`${Math.max(0,Math.min(100,s.percentage))}%`;
+  const descriptor=s.level==='danger'?'Pozor na výdavky':s.level==='warning'?'Blížiš sa k limitu':'V rámci limitu';
+  $('#todayBudgetState').textContent=descriptor;
+  box.dataset.level=s.level;
+}
+
 function renderOverviewSync(){
   const connected=!!(state.settings.syncUrl&&state.settings.syncKey),dot=$('#overviewSyncDot'),txt=$('#overviewSyncText'),time=$('#overviewSyncTime');
   if(!dot)return;dot.className=connected?'sync-ok':'sync-off';txt.textContent=connected?'Tatra pripojená':'Tatra nepripojená';time.textContent=connected?(state.settings.lastSync?`posledný sync ${new Date(state.settings.lastSync).toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'})}`:'pripravené na sync'):'otvor Tatra a nastav pripojenie';
@@ -309,6 +337,34 @@ function personalTips(){
     alternative:`Skús dnes pripraviť ${cheap.n.toLowerCase()} namiesto objednávania.`,
     note:'Odhad ceny surovín na 1 porciu; nie je to potvrdená úspora.',action:mealAction
   });
+
+  const d=dailySpendingStatus();
+  if(d.leftToday<0 && d.spentToday>0){
+    tips.push({icon:'🛑',title:'Dnes už radšej nič drahé nekupuj',
+      body:`Dnes si minul ${fmt(d.spentToday)} z odporúčaného limitu ${fmt(d.morningReference)}. Nad limitom si o ${fmt(-d.leftToday)}.`,
+      alternative:`Ak potrebuješ ešte jesť, skús ${cheap.n.toLowerCase()} (odhad ${fmt(cheap.c)}). Iné nepovinné nákupy môžeš odložiť.`,
+      note:`Zostávajúce dni sa priebežne prepočítavajú. ${d.remainingDays>1?'Na ďalší deň teraz vychádza približne '+fmt(d.tomorrowReference)+'.':''} Ide o odporúčanie.`,action:mealAction});
+  }else if(d.spentToday>0 && d.leftToday<=0){
+    tips.push({icon:'🛑',title:'Dnešný limit je vyčerpaný',
+      body:`Dnes si minul ${fmt(d.spentToday)}. Teraz už máš na dnešok bezpečne ${fmt(0)}.`,
+      alternative:`Prípadné drahšie nákupy radšej odlož. Ak treba večeru, pozri si ${cheap.n.toLowerCase()}.`,
+      note:'Zajtrajší denný priemer sa prepočíta zo zostávajúcich peňazí.',action:mealAction});
+  }else if(d.percentage>=90){
+    tips.push({icon:'🔴',title:'Pozor, dnešný limit je takmer vyčerpaný',
+      body:`Dnes si minul ${fmt(d.spentToday)} z ${fmt(d.morningReference)}. Na dnešok zostáva len ${fmt(d.leftToday)}.`,
+      alternative:`Pred ďalšou objednávkou skús lacnejšiu možnosť: ${cheap.n.toLowerCase()} (~${fmt(cheap.c)}).`,
+      note:'Ak minieš viac, rozpočet na zostávajúce dni sa automaticky prepočíta.',action:mealAction});
+  }else if(d.percentage>=75){
+    tips.push({icon:'🟠',title:'Dnes už nekupuj nič zbytočne drahé',
+      body:`Minul si už ${Math.round(d.percentage)} % dnešného limitu: ${fmt(d.spentToday)} z ${fmt(d.morningReference)}.`,
+      alternative:`Ešte máš približne ${fmt(d.leftToday)}. Ak potrebuješ jedlo, domáca možnosť je ${cheap.n.toLowerCase()} (~${fmt(cheap.c)}).`,
+      note:'Dnešný strop porovnávame s platbami uskutočnenými dnes, nie s celým mesiacom.',action:mealAction});
+  }else{
+    tips.push({icon:'✅',title:d.spentToday>0?'Zatiaľ míňaš v rámci dnešného limitu':'Dnes začínaš s čistým štítom',
+      body:`Dnes si minul ${fmt(d.spentToday)} z odporúčaných ${fmt(d.morningReference)}.`,
+      alternative:`Môžeš ešte minúť približne ${fmt(Math.max(0,d.leftToday))}. Zaujímavá alternatíva na jedlo: ${cheap.n.toLowerCase()} (~${fmt(cheap.c)}).`,
+      note:'Je to orientačný strop, nie zákaz míňania. Po Tatra synchronizácii sa aktualizuje.',action:mealAction});
+  }
 
   const uncat=uncategorizedTx();
   if(uncat.length){
@@ -411,6 +467,7 @@ function renderSmartTip(){
   $('#smartTipCard').dataset.tipIndex=String(index);
 }
 function renderOverview(){
+  renderDailySpending();
   renderSmartTip();
   const budget=state.settings.budget,spent=totalSpent(),planned=pendingPlanned(),remaining=budget-spent,realFree=budget-state.settings.savings-spent-planned;
   const autoHint=$('#autoBudgetHint');if(autoHint)autoHint.textContent=state.settings.autoAllocate?'Limity kategórií sa prispôsobujú rozpočtu':'Limity kategórií sú nastavené ručne';
@@ -443,7 +500,7 @@ function renderExpenses(){
   $('#transactions').innerHTML=list.sort((a,b)=>b.ts-a.ts).map(t=>{const c=cat(t.category);return `<div class="tx"><div class="tx-left"><div class="tx-icon">${esc(c.icon)}</div><div><div class="tx-title">${esc(t.merchant)} ${txNeedsReview(t)?'<span class="review-badge">skontrolovať</span>':''}</div><div class="tx-sub">${esc(c.name)} · ${new Date(t.ts).toLocaleString('sk-SK',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}<br>${esc(t.source||'manual')}</div></div></div><div class="tx-right"><span class="tx-amt">−${fmt(t.amount)}</span><button class="edit-btn" data-edit-tx="${t.id}">Upraviť</button><button class="delete-btn" data-del="${t.id}">✕</button></div></div>`}).join('');
   $$('[data-edit-tx]').forEach(b=>b.onclick=()=>openEditTx(b.dataset.editTx));$$('[data-del]').forEach(b=>b.onclick=()=>deleteTx(b.dataset.del));
 }
-function deleteTx(id){const t=state.transactions.find(x=>x.id===id);if(!t)return;if(!confirm(`Vymazať ${t.merchant} ${fmt(t.amount)}?`))return;if(t.externalId&&!state.ignoredExternalIds.includes(t.externalId))state.ignoredExternalIds.push(t.externalId);state.transactions=state.transactions.filter(x=>x.id!==id);save();render();toast('Výdavok vymazaný.')}
+function deleteTx(id){const t=state.transactions.find(x=>x.id===id);if(!t)return;if(!confirm(`Vymazať ${t.merchant} ${fmt(t.amount)}?`))return;if(t.externalId&&!state.ignoredExternalIds.includes(t.externalId))state.ignoredExternalIds.push(t.externalId);state.transactions=state.transactions.filter(x=>x.id!==id);smartTipIndex=0;save();render();toast('Výdavok vymazaný.')}
 
 function mealSeed(offset=0){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+offset);return Number(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`)}
 function recipeTags(r){const s=(r.n+' '+r.ing.join(' ')).toLowerCase(),tags=[];if(/cestovin|penne|špaget|mac|gnocchi|kolien/.test(s))tags.push('pasta');if(/pizza|baget/.test(s))tags.push('pizza');if(/syr|syrov|mozz|eidam|gouda|cheddar|parmez/.test(s))tags.push('cheese');if(/zemiak|hranol/.test(s))tags.push('potato');if(r.chicken)tags.push('chicken');if(/chips|nachos|toast|quesadilla|snack/.test(s))tags.push('snack');if(r.c<=2.5)tags.push('cheap');if(r.t<=20)tags.push('quick');return tags}
@@ -509,7 +566,7 @@ $$('[data-nav]').forEach(b=>b.onclick=()=>navigate(b.dataset.nav));$('#quickSett
 $('#merchantInput').oninput=e=>$('#categoryInput').value=autoCat(e.target.value);
 $('#saveTxBtn').onclick=e=>{e.preventDefault();const a=parseNum($('#amountInput').value),m=$('#merchantInput').value.trim();if(!a||!m)return;addTx(a,m,$('#categoryInput').value);$('#addForm').reset();$('#addDialog').close()};
 $('#txCategoryFilter').onchange=e=>{currentFilter=e.target.value;renderExpenses()};$('#txSearch').oninput=e=>{currentSearch=e.target.value.trim();renderExpenses()};
-$('#editTxSave').onclick=e=>{e.preventDefault();const t=state.transactions.find(x=>x.id===currentEditTxId);if(!t)return;const amount=parseNum($('#editTxAmount').value),merchant=$('#editTxMerchant').value.trim(),category=$('#editTxCategory').value;if(!amount||!merchant)return;t.amount=amount;t.merchant=merchant;t.category=category;t.needsReview=false;if($('#editTxRemember').checked)state.merchantRules[merchantKey(merchant)]=category;save();$('#editTxDialog').close();render();toast($('#editTxRemember').checked?'Opravené a pravidlo zapamätané.':'Transakcia opravená.')};
+$('#editTxSave').onclick=e=>{e.preventDefault();const t=state.transactions.find(x=>x.id===currentEditTxId);if(!t)return;const amount=parseNum($('#editTxAmount').value),merchant=$('#editTxMerchant').value.trim(),category=$('#editTxCategory').value;if(!amount||!merchant)return;t.amount=amount;t.merchant=merchant;t.category=category;t.needsReview=false;smartTipIndex=0;if($('#editTxRemember').checked)state.merchantRules[merchantKey(merchant)]=category;save();$('#editTxDialog').close();render();toast($('#editTxRemember').checked?'Opravené a pravidlo zapamätané.':'Transakcia opravená.')};
 $('#editTxDelete').onclick=()=>{if(currentEditTxId)deleteTx(currentEditTxId);$('#editTxDialog').close()};
 $('#prevMealDayBtn').onclick=()=>{featuredRecipeIndex=-1;recipeOffset--;renderFood()};$('#nextMealDayBtn').onclick=()=>{featuredRecipeIndex=-1;recipeOffset++;renderFood()};$('#cheaperDayBtn').onclick=findCheaperDay;$('#addLunchCostBtn').onclick=()=>{const r=getMealPair().lunch;addTx(r.c,`Domáci obed: ${r.n}`,'food','recept')};$('#addDinnerCostBtn').onclick=()=>{const r=getMealPair().dinner;addTx(r.c,`Domáca večera: ${r.n}`,'food','recept')};$('#resetShoppingBtn').onclick=()=>{state.shopping[shoppingKey()]={};save();renderFood()};
 $('#makeTestEmailBtn').onclick=()=>{$('#emailText').value=testEmail();showParsed($('#emailText').value)};$('#testAndImportBtn').onclick=()=>{const t=testEmail();$('#emailText').value=t;showParsed(t,true)};$('#parseBtn').onclick=()=>showParsed($('#emailText').value.trim());
@@ -563,4 +620,4 @@ $('#exportCsvBtn').onclick=exportCsv;$('#exportJsonBtn').onclick=exportJson;
 if('serviceWorker' in navigator){navigator.serviceWorker.register(`./sw.js?v=${CACHE_VERSION}`).then(r=>r.update()).catch(()=>{})}
 render();navigate('overview');
 setTimeout(()=>syncTatraCloud(true).catch(()=>{}),700);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&Date.now()-(state.settings.lastSync||0)>60000)syncTatraCloud(true).catch(()=>{})});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){smartTipIndex=0;renderOverview();if(Date.now()-(state.settings.lastSync||0)>60000)syncTatraCloud(true).catch(()=>{})}});
