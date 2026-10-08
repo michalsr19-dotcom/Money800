@@ -1,14 +1,3 @@
-Money800 v5.3
-
-Novinky:
-- centrum nezaradených platieb
-- pravidlá obchodníkov
-- ciele šetrenia
-- návrhy možných predplatných
-- kalendár výdavkov
-- dnešný súhrn, top obchodník a najväčší nákup
-- export CSV a JSON
-- filtre receptov: lacné, rýchle, cestoviny, pizza, syrové, zemiaky, kuracie, snack
-- Tatra Sync a Google Sheet ostávajú bez zmeny
-
-Nahraj všetky súbory na GitHub Pages.
+Money800 v5.4 – automatické prispôsobenie limitov podľa skutočného rozpočtu po výplate.
+V nastaveniach zapni automatické prispôsobenie. Zmenou celkového rozpočtu sa prepočítajú kategórie. Fitko je pevné, ostatné flexibilné; ručne vieš režimy upraviť. Pri výplate zadaj novú sumu.
+Tatra Sync a Apps Script ostávajú BEZ ZMENY. Nahraj súbory do koreňa existujúceho GitHub Pages repozitára.

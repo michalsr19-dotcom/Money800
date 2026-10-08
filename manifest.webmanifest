@@ -2,7 +2,7 @@
   "name":"Money800",
   "short_name":"Money800",
   "description":"Osobný rozpočet, jedlo a Tatra B-mail tracker",
-  "start_url":"./?v=13",
+  "start_url":"./",
   "scope":"./",
   "display":"standalone",
   "background_color":"#090e1b",

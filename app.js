@@ -1,5 +1,5 @@
-const APP_VERSION='5.3';
-const CACHE_VERSION='15';
+const APP_VERSION='5.4';
+const CACHE_VERSION='16';
 const BUDGET_PERIOD_DAYS=30;
 
 const DEFAULT_CATEGORIES=[
@@ -14,7 +14,7 @@ const DEFAULT_CATEGORIES=[
 
 const DEFAULT_STATE={
   settings:{
-    budget:800,savings:150,
+    budget:800,savings:150,autoAllocate:true,
     periodStart:new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime(),
     syncUrl:'',syncKey:'',lastSync:0,categories:DEFAULT_CATEGORIES
   },
@@ -68,10 +68,16 @@ function migrate(raw){
   const oldCats=Array.isArray(r.settings?.categories)?r.settings.categories:DEFAULT_CATEGORIES;
   const categories=DEFAULT_CATEGORIES.map(d=>({...d,...(oldCats.find(c=>c.id===d.id)||{}),keywords:d.keywords}));
   oldCats.filter(c=>!DEFAULT_CATEGORIES.some(d=>d.id===c.id)).forEach(c=>categories.push(c));
+  // Základné váhy sa uchovávajú nezávisle od posledného automatického prepočtu.
+  categories.forEach(c=>{
+    c.baseLimit = Math.max(0,Number(c.baseLimit??c.limit??0));
+    c.budgetMode = c.budgetMode === 'fixed' || c.budgetMode === 'flex' ? c.budgetMode : (c.id === 'gym' ? 'fixed' : 'flex');
+  });
   return {
     settings:{
       budget:Number(r.settings?.budget??800)||800,
-      savings:Number(r.settings?.savings??150)||0,
+      savings:Math.max(0,Number(r.settings?.savings??150)||0),
+      autoAllocate:r.settings?.autoAllocate!==false,
       periodStart:Number(r.settings?.periodStart)||new Date(new Date().getFullYear(),new Date().getMonth(),1).getTime(),
       syncUrl:String(r.settings?.syncUrl||''),
       syncKey:String(r.settings?.syncKey||''),
@@ -95,11 +101,83 @@ function periodKey(){return `period-${new Date(periodStartTs()).toISOString().sl
 function txPeriod(){return state.transactions.filter(t=>Number(t.ts)>=periodStartTs())}
 function periodFlags(){if(!state.monthlyFlags[periodKey()])state.monthlyFlags[periodKey()]={};return state.monthlyFlags[periodKey()]}
 function isPaid(id){return !!periodFlags()[id]}
+function paidFlagAmount(id){
+  const f=periodFlags()[id];
+  if (!f) return 0;
+  return (typeof f === 'object' && Number.isFinite(Number(f.amount))) ? Math.max(0,Number(f.amount)) : Math.max(0,Number(cat(id)?.limit||0));
+}
+function capturePaidAmounts(){
+  cats().forEach(c=>{if(c.type==='toggle'&&isPaid(c.id) && typeof periodFlags()[c.id]!=='object') periodFlags()[c.id]={amount:Number(c.limit||0)};});
+}
 function txSpent(id){return txPeriod().filter(t=>t.category===id).reduce((s,t)=>s+Number(t.amount||0),0)}
-function catSpent(id){const c=cat(id),actual=txSpent(id);return c?.type==='toggle'&&isPaid(id)?Math.max(actual,Number(c.limit||0)):actual}
+function catSpent(id){const c=cat(id),actual=txSpent(id);return c?.type==='toggle'&&isPaid(id)?Math.max(actual,paidFlagAmount(id)):actual}
 function totalSpent(){return cats().reduce((s,c)=>s+catSpent(c.id),0)}
 function daysElapsed(){return Math.max(1,Math.floor((Date.now()-periodStartTs())/86400000)+1)}
 function daysLeft(){return Math.max(1,BUDGET_PERIOD_DAYS-daysElapsed()+1)}
+/** Prepočet limitov bez zásahu do Tatra údajov či minulých platieb.
+ * Rozpočet je suma po fixných účtoch; najprv sa rezervujú úspory a čakajúce platby.
+ * Pevné kategórie ostávajú a zaplatené či minuté sumy sa nemôžu "odpočítať".
+ */
+function moneyTarget(budget=state.settings.budget,savings=state.settings.savings,plannedAmount=pendingPlanned()){
+  return Math.max(0,Math.round((Math.max(0,Number(budget)||0)-Math.max(0,Number(savings)||0)-Math.max(0,Number(plannedAmount)||0))*100));
+}
+function allocationPlan(budget=state.settings.budget,savings=state.settings.savings,reset=false,draft=null){
+  const entries=(draft||cats()).map(c=>({
+    id:c.id,
+    mode:c.budgetMode==='fixed'?'fixed':'flex',
+    weight:Math.max(0,Number(c.baseLimit??c.limit??0)),
+    floor:reset?0:Math.max(0,Math.round(catSpent(c.id)*100)),
+    fixed:Math.max(0,Math.round(Number(c.baseLimit??c.limit??0)*100))
+  }));
+  const target=moneyTarget(budget,savings);
+  const alloc={};
+  let flexibleTarget=target;
+  for(const e of entries.filter(x=>x.mode==='fixed')){
+    alloc[e.id]=Math.max(e.fixed,e.floor);
+    flexibleTarget-=alloc[e.id];
+  }
+  const flexible=entries.filter(x=>x.mode==='flex');
+  let pool=flexible.slice();
+  // Rozdeľujeme len to, čo je skutočne dostupné, a nič nedávame pod
+  // sumu, ktorú už človek v príslušnej kategórii minul.
+  while(pool.length){
+    const w=pool.reduce((s,e)=>s+e.weight,0);
+    const forced=pool.filter(e=>e.floor > (flexibleTarget * (w?e.weight/w:1/pool.length)));
+    if(!forced.length)break;
+    forced.forEach(e=>{alloc[e.id]=e.floor;flexibleTarget-=e.floor;});
+    pool=pool.filter(e=>!forced.includes(e));
+  }
+  const w=pool.reduce((s,e)=>s+e.weight,0);
+  let left=Math.max(0,flexibleTarget);
+  for(let i=0;i<pool.length;i++){
+    const e=pool[i];
+    const cents=i===pool.length-1?left:Math.max(0,Math.floor(Math.max(0,flexibleTarget)*(w?e.weight/w:1/pool.length)));
+    alloc[e.id]=Math.max(e.floor,cents);
+    left-=cents;
+  }
+  const sum=Object.values(alloc).reduce((s,v)=>s+v,0);
+  return {amounts:alloc,target:target/100,allocated:sum/100,over:(sum-target)/100};
+}
+function applyAllocation(budget=state.settings.budget,savings=state.settings.savings,reset=false){
+  if(!state.settings.autoAllocate)return null;
+  capturePaidAmounts();
+  const plan=allocationPlan(budget,savings,reset);
+  cats().forEach(c=>{c.limit=(plan.amounts[c.id]||0)/100;});
+  return plan;
+}
+function previewAllocation(){
+  const el=$('#allocationPreview');if(!el)return;
+  const budget=Math.max(0,parseNum($('#budgetInput').value));
+  const savings=Math.max(0,parseNum($('#savingsInput').value));
+  if(!$('#autoAllocateInput').checked){el.innerHTML='<span class="muted">Automatický prepočet je vypnutý; limity zostanú manuálne.</span>';return;}
+  const draft=cats().map(c=>({
+    ...c,
+    baseLimit:parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value??c.baseLimit??c.limit),
+    budgetMode:document.querySelector(`[data-cat-mode="${c.id}"]`)?.value??c.budgetMode
+  }));
+  const plan=allocationPlan(budget,savings,false,draft);
+  el.innerHTML=`<div class="alloc-preview-title">Nové limity · ${fmt(plan.target)} po úsporách a plánovaných platbách</div><div class="alloc-preview-grid">${cats().map(c=>`<div><span>${esc(c.icon)} ${esc(c.name)}</span><b>${fmt((plan.amounts[c.id]||0)/100)}</b></div>`).join('')}</div>${plan.over>0.009?`<div class="alloc-warning">⚠️ Už minuté a pevné platby prekračujú dostupnú sumu o ${fmt(plan.over)}. Platené položky nemeníme.</div>`:''}`;
+}
 function merchantKey(m=''){return String(m).toLowerCase().replace(/[^a-z0-9áäčďéíĺľňóôŕšťúýž ]/gi,' ').replace(/\s+/g,' ').trim()}
 function autoCatInfo(merchant=''){
   const key=merchantKey(merchant),rule=state.merchantRules?.[key],m=String(merchant).toLowerCase();
@@ -162,7 +240,7 @@ function categoryCard(c){
   const remain=Math.max(0,lim-sp), advice=c.type==='spend'&&lim?`${fmt(remain/Math.max(1,daysLeft()))}/deň do konca obdobia`:'Jednorazová / rezervná položka';
   return `<div class="category"><div class="category-top"><div class="category-left"><div class="cat-icon">${esc(c.icon)}</div><div><div class="category-name">${esc(c.name)}</div><div class="category-meta">${fmt(sp)} z ${fmt(lim)}</div></div></div><div class="category-right"><strong>${Math.round(pct)}%</strong><div class="remain">${fmt(remain)} ostáva</div></div></div><div class="bar"><div class="${warn}" style="width:${pct}%"></div></div><div class="category-advice">${advice}</div><div class="category-footer"><span class="category-badge">${badge}</span>${c.type==='toggle'?`<button class="quick-btn ${paid?'paid':''}" data-paid="${c.id}">${paid?'Zrušiť':'Označiť zaplatené'}</button>`:''}</div></div>`;
 }
-function bindToggleButtons(){$$('[data-paid]').forEach(b=>b.onclick=()=>{periodFlags()[b.dataset.paid]=!isPaid(b.dataset.paid);save();render();toast(isPaid(b.dataset.paid)?'Označené ako zaplatené.':'Platba zrušená.')})}
+function bindToggleButtons(){$$('[data-paid]').forEach(b=>b.onclick=()=>{const id=b.dataset.paid;periodFlags()[id]=isPaid(id)?false:{amount:Number(cat(id).limit||0)};save();render();toast(isPaid(id)?'Označené ako zaplatené.':'Platba zrušená.')})}
 
 function forecastReady(){return daysElapsed()>=3&&txPeriod().length>=5}
 function forecast(){
@@ -209,6 +287,7 @@ function renderMerchantRules(){const el=$('#merchantRulesEditor');if(!el)return;
 function renderSubscriptions(){const el=$('#subscriptionSuggestions');if(!el)return;const list=subscriptionCandidates();if(!list.length){el.innerHTML='<div class="planned-empty">Momentálne nič nové nevyzerá ako typické predplatné.</div>';return}el.innerHTML=list.map(s=>`<div class="suggestion-row"><div><b>${esc(s.name)}</b><small>${fmt(s.amount)} · ${esc(cat(s.category)?.name||'Ostatné')} · možné predplatné</small></div><div class="suggestion-actions"><button class="quick-btn" data-sub-add="${esc(s.key)}">Pridať</button><button class="mini-delete" data-sub-dismiss="${esc(s.key)}">Skryť</button></div></div>`).join('');$$('[data-sub-add]').forEach(b=>b.onclick=()=>{const s=subscriptionCandidates().find(x=>x.key===b.dataset.subAdd);if(!s)return;state.planned.push({id:uid(),name:s.name,amount:s.amount,category:s.category||'other',day:Math.min(30,daysElapsed()),paid:true});save();render();toast('Pridané medzi plánované platby.')});$$('[data-sub-dismiss]').forEach(b=>b.onclick=()=>{state.subscriptionDismissed=[...(state.subscriptionDismissed||[]),b.dataset.subDismiss];save();renderSettings()})}
 function renderOverview(){
   const budget=state.settings.budget,spent=totalSpent(),planned=pendingPlanned(),remaining=budget-spent,realFree=budget-state.settings.savings-spent-planned;
+  const autoHint=$('#autoBudgetHint');if(autoHint)autoHint.textContent=state.settings.autoAllocate?'Limity kategórií sa prispôsobujú rozpočtu':'Limity kategórií sú nastavené ručne';
   $('#todayLabel').textContent=`Dnes ${new Intl.DateTimeFormat('sk-SK',{day:'numeric',month:'long',year:'numeric'}).format(new Date())}`;
   $('#periodLabel').textContent=`Obdobie od ${new Date(periodStartTs()).toLocaleDateString('sk-SK')} · ${daysLeft()} dní do plánovaného resetu`;
   $('#remainingAmount').textContent=fmt(remaining);$('#spentPill').textContent=`Minuté ${fmt(spent)}`;$('#txCountPill').textContent=`${txPeriod().length} platieb`;
@@ -273,12 +352,18 @@ function showParsed(txt,autoImport=false){const a=parseAmount(txt),m=parseMercha
 function testEmail(){const samples=[`Vazeny klient,\n\n4.10.2026 15:12 bol zostatok Vasho uctu SKxxxxxxxxxxxxxxxxxxxx znizeny o 3,64 EUR.\nuctovny zostatok: 33,86 EUR\n\nPopis transakcie: Platba kartou 4405**9260, NVIDIA CORPORATION.`,`Vazeny klient,\n\n4.10.2026 15:20 bol zostatok Vasho uctu SKxxxxxxxxxxxxxxxxxxxx znizeny o 18,47 EUR.\n\nPopis transakcie: Platba kartou 4405**9260, WOLT.`,`Vazeny klient,\n\n4.10.2026 15:25 bol zostatok Vasho uctu SKxxxxxxxxxxxxxxxxxxxx znizeny o 40,00 EUR.\n\nPopis transakcie: Platba kartou 4405**9260, OMV KOSICE.`];return samples[Math.floor(Math.random()*samples.length)]}
 
 function renderCategoryEditor(){
-  $('#categoryEditor').innerHTML=cats().map(c=>`<div class="cat-edit-card"><div class="cat-edit-head"><div class="cat-edit-title"><span>${esc(c.icon)}</span><span>${esc(c.name)}</span></div>${!DEFAULT_CATEGORIES.some(d=>d.id===c.id)?`<button class="mini-delete" data-delcat="${c.id}">Vymazať</button>`:''}</div><div class="cat-edit-grid"><label>Názov<input data-cat-name="${c.id}" value="${esc(c.name)}"></label><label>Limit (€)<input inputmode="decimal" data-cat-limit="${c.id}" value="${String(c.limit).replace('.',',')}"></label><label>Režim<select data-cat-type="${c.id}"><option value="spend" ${c.type==='spend'?'selected':''}>Bežné výdavky</option><option value="toggle" ${c.type==='toggle'?'selected':''}>Zaplatené / nezaplatené</option></select></label></div></div>`).join('');
-  $$('[data-cat-limit]').forEach(i=>i.oninput=updateBudgetSum);$$('[data-delcat]').forEach(b=>b.onclick=()=>{state.settings.categories=state.settings.categories.filter(c=>c.id!==b.dataset.delcat);save();renderSettings();toast('Kategória vymazaná.')});
+  $('#categoryEditor').innerHTML=cats().map(c=>`<div class="cat-edit-card"><div class="cat-edit-head"><div class="cat-edit-title"><span>${esc(c.icon)}</span><span>${esc(c.name)}</span></div>${!DEFAULT_CATEGORIES.some(d=>d.id===c.id)?`<button class="mini-delete" data-delcat="${c.id}">Vymazať</button>`:''}</div><div class="cat-edit-grid"><label>Názov<input data-cat-name="${c.id}" value="${esc(c.name)}"></label><label>Základný limit (€)<input inputmode="decimal" data-cat-limit="${c.id}" value="${String(c.baseLimit??c.limit).replace('.',',')}"></label><label>Prepočet<select data-cat-mode="${c.id}"><option value="flex" ${c.budgetMode!=='fixed'?'selected':''}>Automaticky</option><option value="fixed" ${c.budgetMode==='fixed'?'selected':''}>Pevná suma</option></select></label><label>Typ<select data-cat-type="${c.id}"><option value="spend" ${c.type==='spend'?'selected':''}>Bežné výdavky</option><option value="toggle" ${c.type==='toggle'?'selected':''}>Zaplatené / nezaplatené</option></select></label></div><div class="cat-edit-note">Teraz: <b>${fmt(c.limit)}</b>${c.budgetMode==='fixed'?' · pevný limit':' · upravuje sa podľa dostupných peňazí'}</div></div>`).join('');
+  $$('[data-cat-limit]').forEach(i=>i.oninput=updateBudgetSum);$$('[data-cat-mode]').forEach(i=>i.onchange=previewAllocation);
+  $$('[data-delcat]').forEach(b=>b.onclick=()=>{state.settings.categories=state.settings.categories.filter(c=>c.id!==b.dataset.delcat);if(state.settings.autoAllocate)applyAllocation();save();render();toast('Kategória vymazaná.')});
 }
-function updateBudgetSum(){const sum=cats().reduce((s,c)=>s+parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value??c.limit),0),budget=parseNum($('#budgetInput')?.value||state.settings.budget),el=$('#categoryBudgetSum');el.textContent=`Súčet limitov kategórií: ${fmt(sum)} z celkového rozpočtu ${fmt(budget)}.`;el.style.color=sum>budget?'var(--warn)':'var(--muted)'}
+function updateBudgetSum(){
+  const sum=cats().reduce((s,c)=>s+parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value??c.baseLimit??c.limit),0);
+  const el=$('#categoryBudgetSum');
+  el.textContent=`Základné limity: ${fmt(sum)}. Sú to váhy na prepočet; aktuálne limity sú na Prehľade.`;
+  el.style.color='var(--muted)';previewAllocation();
+}
 function renderPlannedEditor(){const el=$('#plannedEditor');if(!state.planned.length){el.innerHTML='<div class="planned-empty">Žiadne plánované platby.</div>';return}el.innerHTML=state.planned.map(p=>`<div class="planned-item"><div class="planned-left"><div class="planned-icon">${esc(cat(p.category)?.icon||'📌')}</div><div><div class="planned-title">${esc(p.name)}</div><div class="planned-sub">${fmt(p.amount)} · deň ${p.day||'—'} · ${esc(cat(p.category)?.name||'Ostatné')}</div></div></div><div class="planned-actions"><button class="quick-btn ${p.paid?'paid':''}" data-plan-toggle="${p.id}">${p.paid?'Zaplatené':'Čaká'}</button><button class="mini-delete" data-plan-del="${p.id}">Vymazať</button></div></div>`).join('');$$('[data-plan-toggle]').forEach(b=>b.onclick=()=>{const p=state.planned.find(x=>x.id===b.dataset.planToggle);p.paid=!p.paid;save();renderSettings();renderOverview()});$$('[data-plan-del]').forEach(b=>b.onclick=()=>{state.planned=state.planned.filter(x=>x.id!==b.dataset.planDel);save();renderSettings();renderOverview()})}
-function renderSettings(){const s=state.settings;$('#budgetInput').value=String(s.budget).replace('.',',');$('#savingsInput').value=String(s.savings).replace('.',',');$('#currentPeriodSummary').textContent=`Aktuálne obdobie od ${new Date(periodStartTs()).toLocaleDateString('sk-SK')} · minuté ${fmt(totalSpent())} · ${txPeriod().length} platieb`;renderCategoryEditor();renderPlannedEditor();renderGoals();renderMerchantRules();renderSubscriptions();updateBudgetSum()}
+function renderSettings(){const s=state.settings;$('#budgetInput').value=String(s.budget).replace('.',',');$('#savingsInput').value=String(s.savings).replace('.',',');$('#autoAllocateInput').checked=s.autoAllocate!==false;$('#currentPeriodSummary').textContent=`Aktuálne obdobie od ${new Date(periodStartTs()).toLocaleDateString('sk-SK')} · minuté ${fmt(totalSpent())} · ${txPeriod().length} platieb`;renderCategoryEditor();renderPlannedEditor();renderGoals();renderMerchantRules();renderSubscriptions();updateBudgetSum()}
 
 
 function refreshSelects(){const opts=cats().map(c=>`<option value="${c.id}">${esc(c.icon)} ${esc(c.name)}</option>`).join('');$('#categoryInput').innerHTML=opts;$('#plannedCategory').innerHTML=opts}
@@ -294,11 +379,42 @@ $('#editTxDelete').onclick=()=>{if(currentEditTxId)deleteTx(currentEditTxId);$('
 $('#prevMealDayBtn').onclick=()=>{recipeOffset--;renderFood()};$('#nextMealDayBtn').onclick=()=>{recipeOffset++;renderFood()};$('#cheaperDayBtn').onclick=findCheaperDay;$('#addLunchCostBtn').onclick=()=>{const r=getMealPair().lunch;addTx(r.c,`Domáci obed: ${r.n}`,'food','recept')};$('#addDinnerCostBtn').onclick=()=>{const r=getMealPair().dinner;addTx(r.c,`Domáca večera: ${r.n}`,'food','recept')};$('#resetShoppingBtn').onclick=()=>{state.shopping[shoppingKey()]={};save();renderFood()};
 $('#makeTestEmailBtn').onclick=()=>{$('#emailText').value=testEmail();showParsed($('#emailText').value)};$('#testAndImportBtn').onclick=()=>{const t=testEmail();$('#emailText').value=t;showParsed(t,true)};$('#parseBtn').onclick=()=>showParsed($('#emailText').value.trim());
 $('#saveSyncBtn').onclick=()=>{state.settings.syncUrl=$('#syncUrlInput').value.trim();state.settings.syncKey=$('#syncKeyInput').value.trim();save();renderTatraSync();toast('Pripojenie uložené.')};$('#syncNowBtn').onclick=()=>syncTatraCloud(false);
-$('#saveMainSettingsBtn').onclick=()=>{state.settings.budget=parseNum($('#budgetInput').value)||800;state.settings.savings=parseNum($('#savingsInput').value);save();render();toast('Nastavenia uložené.')};$('#budgetInput').oninput=updateBudgetSum;
-$('#saveCategoriesBtn').onclick=()=>{state.settings.categories=cats().map(c=>({...c,name:document.querySelector(`[data-cat-name="${c.id}"]`)?.value.trim()||c.name,limit:parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value),type:document.querySelector(`[data-cat-type="${c.id}"]`)?.value||c.type}));save();render();toast('Kategórie uložené.')};
-$('#addCategoryBtn').onclick=()=>$('#categoryDialog').showModal();$('#createCategoryBtn').onclick=e=>{e.preventDefault();const name=$('#newCatName').value.trim(),limit=parseNum($('#newCatLimit').value);if(!name||!limit)return;state.settings.categories.push({id:`custom_${Date.now()}`,name,icon:$('#newCatIcon').value.trim()||'💳',limit,type:$('#newCatType').value,keywords:[]});save();$('#categoryDialog').close();$('#categoryForm').reset();$('#newCatIcon').value='💳';render();toast('Kategória pridaná.')};
+$('#saveMainSettingsBtn').onclick=()=>{
+  const budget=parseNum($('#budgetInput').value),savings=parseNum($('#savingsInput').value);
+  if(!Number.isFinite(budget)||budget<=0){toast('Zadaj platný rozpočet väčší ako 0 €.');return;}
+  if(savings>budget && !confirm('Cieľ úspor je vyšší než dostupný rozpočet. Pokračovať?'))return;
+  state.settings.budget=budget;state.settings.savings=savings;
+  state.settings.autoAllocate=$('#autoAllocateInput').checked;
+  const plan=applyAllocation();save();render();toast(plan?'Rozpočet aj limity upravené.':'Rozpočet upravený. Limity ostali manuálne.');
+};
+$('#budgetInput').oninput=updateBudgetSum;$('#savingsInput').oninput=previewAllocation;$('#autoAllocateInput').onchange=previewAllocation;
+$('#saveCategoriesBtn').onclick=()=>{
+  capturePaidAmounts();
+  state.settings.categories=cats().map(c=>{
+    const baseLimit=Math.max(0,parseNum(document.querySelector(`[data-cat-limit="${c.id}"]`)?.value));
+    return {...c,name:document.querySelector(`[data-cat-name="${c.id}"]`)?.value.trim()||c.name,baseLimit,
+      budgetMode:document.querySelector(`[data-cat-mode="${c.id}"]`)?.value||c.budgetMode,
+      type:document.querySelector(`[data-cat-type="${c.id}"]`)?.value||c.type,
+      limit:state.settings.autoAllocate?c.limit:baseLimit};
+  });
+  applyAllocation();save();render();toast('Kategórie uložené.');
+};
+$('#addCategoryBtn').onclick=()=>$('#categoryDialog').showModal();$('#createCategoryBtn').onclick=e=>{e.preventDefault();const name=$('#newCatName').value.trim(),limit=parseNum($('#newCatLimit').value);if(!name||!limit)return;state.settings.categories.push({id:`custom_${Date.now()}`,name,icon:$('#newCatIcon').value.trim()||'💳',limit,baseLimit:limit,budgetMode:'flex',type:$('#newCatType').value,keywords:[]});applyAllocation();save();$('#categoryDialog').close();$('#categoryForm').reset();$('#newCatIcon').value='💳';render();toast('Kategória pridaná.')};
 $('#addPlannedBtn').onclick=()=>$('#plannedDialog').showModal();$('#createPlannedBtn').onclick=e=>{e.preventDefault();const name=$('#plannedName').value.trim(),amount=parseNum($('#plannedAmount').value),day=Math.min(30,Math.max(1,parseInt($('#plannedDay').value||'1',10)));if(!name||!amount)return;state.planned.push({id:uid(),name,amount,category:$('#plannedCategory').value||'other',day,paid:false});save();$('#plannedDialog').close();$('#plannedForm').reset();render();toast('Plánovaná platba pridaná.')};
-$('#paydayResetBtn').onclick=()=>{if(confirm('Začať nové obdobie? Výdavky z končiaceho obdobia sa vymažú. Tatra Sync, Sync kľúč, kategórie, plánované platby a pravidlá obchodníkov zostanú.')){state.transactions=[];state.settings.periodStart=Date.now();state.monthlyFlags={};state.shopping={};state.planned.forEach(p=>p.paid=false);save();render();navigate('overview');toast('Nové obdobie začalo od nuly.')}};
+$('#paydayResetBtn').onclick=()=>{
+  $('#paydayBudgetInput').value=String(state.settings.budget).replace('.',',');
+  $('#paydaySavingsInput').value=String(state.settings.savings).replace('.',',');
+  $('#paydayDialog').showModal();
+};
+$('#confirmPaydayBtn').onclick=e=>{
+  e.preventDefault();const budget=parseNum($('#paydayBudgetInput').value),savings=parseNum($('#paydaySavingsInput').value);
+  if(!budget||budget<=0){toast('Zadaj sumu na nové obdobie.');return;}
+  if(!confirm('Začať nové obdobie? Výdavky z doterajšieho obdobia sa vymažú. Google Sheet a Tatra pripojenie ostanú bez zmeny.'))return;
+  state.transactions=[];state.settings.periodStart=Date.now();state.monthlyFlags={};state.shopping={};state.planned.forEach(p=>p.paid=false);
+  state.settings.budget=budget;state.settings.savings=savings;
+  const plan=applyAllocation(budget,savings,true);save();$('#paydayDialog').close();render();navigate('overview');
+  toast(plan?'Nová výplata: limity automaticky nastavené.':'Nové obdobie začalo.');
+};
 
 $('#overviewSyncBtn').onclick=()=>syncTatraCloud(false);
 $('#reviewUncategorizedBtn').onclick=()=>{currentFilter='all';currentDayFilter='';navigate('expenses');currentSearch='';$('#txSearch').value='';renderExpenses();setTimeout(()=>{const first=uncategorizedTx()[0];if(first)openEditTx(first.id)},120)};

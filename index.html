@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=15" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=15" />
-  <link rel="stylesheet" href="styles.css?v=15" />
+  <link rel="manifest" href="manifest.webmanifest?v=16" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=16" />
+  <link rel="stylesheet" href="styles.css?v=16" />
   <title>Money800</title>
 </head>
 <body>
@@ -91,7 +91,7 @@
 
         <section class="section">
           <div class="section-head">
-            <div><h2>Kategórie</h2><div class="section-note">Pri 75 %, 90 % a 100 % sa karta zvýrazní.</div></div>
+            <div><h2>Kategórie</h2><div class="section-note" id="autoBudgetHint">Pri 75 %, 90 % a 100 % sa karta zvýrazní.</div></div>
             <button class="link-btn" data-nav="settings">Upraviť</button>
           </div>
           <div id="categoryList" class="category-list"></div>
@@ -235,19 +235,22 @@
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.3</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.4</span></div>
 
         <section class="settings-card">
           <div class="settings-grid settings-grid-two">
             <label>Rozpočet na obdobie (€)<input id="budgetInput" inputmode="decimal" /></label>
             <label>Cieľ odložiť (€)<input id="savingsInput" inputmode="decimal" /></label>
           </div>
+          <label class="auto-allocate-toggle"><input type="checkbox" id="autoAllocateInput" checked /><span><b>Automaticky prispôsobovať kategórie</b><small>Keď sa zmení rozpočet, Jedlo, Tankovanie aj ďalšie kategórie sa prepočítajú. Fitko môže zostať pevná suma.</small></span></label>
+          <div class="auto-explainer">Zadaj sumu, ktorá ti zostáva <b>po nájme a pevných účtoch</b>. Odpočíta sa cieľ úspor a nezaplatené plánované platby. Limity sa rozdelia podľa tvojich nastavených priorít. Už minuté peniaze appka nikdy nevymaže.</div>
+          <div id="allocationPreview" class="allocation-preview"></div>
           <div id="categoryBudgetSum" class="budget-sum-note"></div>
           <button class="primary wide" id="saveMainSettingsBtn">Uložiť nastavenia</button>
         </section>
 
         <section class="section">
-          <div class="section-head"><div><h2>Rozpočty kategórií</h2><div class="section-note">Napr. Jedlo 300 → 350 €, Tankovanie 90 → 110 €.</div></div><button class="link-btn" id="addCategoryBtn">＋ Nová</button></div>
+          <div class="section-head"><div><h2>Rozpočty kategórií</h2><div class="section-note">Základné sumy určujú pomery. Kategóriu môžeš nastaviť ako pevnú alebo automatickú.</div></div><button class="link-btn" id="addCategoryBtn">＋ Nová</button></div>
           <div id="categoryEditor" class="cats-editor"></div>
           <button class="primary wide" id="saveCategoriesBtn">Uložiť kategórie</button>
         </section>
@@ -280,7 +283,7 @@
         <section class="reset-card">
           <h3>💰 Prišla výplata</h3>
           <p id="currentPeriodSummary">Aktuálne obdobie</p>
-          <p>Vymaže výdavky z končiaceho obdobia a začne od nuly. <b>Tatra Sync, Sync kľúč, kategórie, plánované platby a pravidlá obchodníkov zostanú.</b> Staré obdobie sa neukladá.</p>
+          <p>Pri novej výplate zadáš, koľko máš tento mesiac k dispozícii. Limity sa prepočítajú a staré výdavky sa vymažú. <b>Tatra Sync, Sync kľúč a pravidlá zostanú.</b> Staré obdobie sa neukladá.</p>
           <button class="danger-btn wide" id="paydayResetBtn">Začať nové obdobie</button>
         </section>
       </section>
@@ -341,6 +344,13 @@
     <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" id="createGoalBtn" value="default">Pridať</button></menu>
   </form></dialog>
 
-  <script src="app.js?v=15"></script>
+  <dialog id="paydayDialog"><form method="dialog" class="dialog-card">
+    <div class="dialog-head"><h3>💰 Nová výplata</h3><button class="icon-btn" value="cancel" aria-label="Zavrieť">✕</button></div>
+    <div class="dialog-note">Zadaj reálne peniaze na život po fixných účtoch. Kategórie sa nastavia podľa tejto sumy. Doterajšie výdavky v Money800 sa vymažú, ale Tatra Sync zostane pripojená.</div>
+    <label>Na toto obdobie mám (€)<input id="paydayBudgetInput" inputmode="decimal" required /></label>
+    <label>Chcem odložiť (€)<input id="paydaySavingsInput" inputmode="decimal" /></label>
+    <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" type="button" id="confirmPaydayBtn">Začať obdobie</button></menu>
+  </form></dialog>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
