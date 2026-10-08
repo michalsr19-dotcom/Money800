@@ -1,5 +1,5 @@
-const APP_VERSION='5.4';
-const CACHE_VERSION='16';
+const APP_VERSION='5.5';
+const CACHE_VERSION='17';
 const BUDGET_PERIOD_DAYS=30;
 
 const DEFAULT_CATEGORIES=[
@@ -92,7 +92,7 @@ function migrate(raw){
   };
 }
 const store={get(){try{return migrate(JSON.parse(localStorage.getItem('money800')||'null'))}catch{return clone(DEFAULT_STATE)}},set(v){localStorage.setItem('money800',JSON.stringify(v))}};
-let state=store.get(),recipeOffset=0,mealVariant=0,currentFilter='all',currentSearch='',currentDayFilter='',currentEditTxId=null; store.set(state);
+let state=store.get(),recipeOffset=0,mealVariant=0,currentFilter='all',currentSearch='',currentDayFilter='',currentEditTxId=null,smartTipIndex=0,featuredRecipeIndex=-1; store.set(state);
 function save(){state.version=APP_VERSION;store.set(state)}
 function cats(){return state.settings.categories}
 function cat(id){return cats().find(c=>c.id===id)||cats().find(c=>c.id==='other')||cats()[0]}
@@ -285,7 +285,133 @@ function exportJson(){const data={version:APP_VERSION,exportedAt:new Date().toIS
 function renderGoals(){const el=$('#goalsEditor');if(!el)return;if(!state.goals.length){el.innerHTML='<div class="planned-empty">Zatiaľ nemáš žiadny cieľ. Môžeš si pridať napr. PC, dovolenku alebo rezervu.</div>';return}el.innerHTML=state.goals.map(g=>{const pct=Math.min(100,Number(g.saved||0)/Math.max(1,Number(g.target||0))*100);return `<div class="goal-card"><div class="goal-head"><div><b>${esc(g.name)}</b><small>${fmt(g.saved)} z ${fmt(g.target)}</small></div><strong>${Math.round(pct)}%</strong></div><div class="bar"><div style="width:${pct}%"></div></div><div class="goal-actions"><button class="quick-btn" data-goal-add="${g.id}">＋ Pridať</button><button class="mini-delete" data-goal-del="${g.id}">Vymazať</button></div></div>`}).join('');$$('[data-goal-add]').forEach(b=>b.onclick=()=>{const g=state.goals.find(x=>x.id===b.dataset.goalAdd);if(!g)return;const v=prompt(`Koľko pridať do cieľa ${g.name}?`,'20');const n=parseNum(v);if(n>0){g.saved=Math.min(Number(g.target),Number(g.saved||0)+n);save();renderSettings();toast('Cieľ aktualizovaný.')}});$$('[data-goal-del]').forEach(b=>b.onclick=()=>{state.goals=state.goals.filter(x=>x.id!==b.dataset.goalDel);save();renderSettings()})}
 function renderMerchantRules(){const el=$('#merchantRulesEditor');if(!el)return;const rows=merchantRuleRows();if(!rows.length){el.innerHTML='<div class="planned-empty">Zatiaľ žiadne vlastné pravidlá. Vytvoria sa pri úprave transakcie cez „zapamätať“.</div>';return}el.innerHTML=rows.map(([m,cid])=>`<div class="rule-row"><div><b>${esc(m)}</b><small>→ ${esc(cat(cid)?.icon||'💳')} ${esc(cat(cid)?.name||cid)}</small></div><button class="mini-delete" data-rule-del="${esc(m)}">Vymazať</button></div>`).join('');$$('[data-rule-del]').forEach(b=>b.onclick=()=>{delete state.merchantRules[b.dataset.ruleDel];save();renderSettings();toast('Pravidlo vymazané.')})}
 function renderSubscriptions(){const el=$('#subscriptionSuggestions');if(!el)return;const list=subscriptionCandidates();if(!list.length){el.innerHTML='<div class="planned-empty">Momentálne nič nové nevyzerá ako typické predplatné.</div>';return}el.innerHTML=list.map(s=>`<div class="suggestion-row"><div><b>${esc(s.name)}</b><small>${fmt(s.amount)} · ${esc(cat(s.category)?.name||'Ostatné')} · možné predplatné</small></div><div class="suggestion-actions"><button class="quick-btn" data-sub-add="${esc(s.key)}">Pridať</button><button class="mini-delete" data-sub-dismiss="${esc(s.key)}">Skryť</button></div></div>`).join('');$$('[data-sub-add]').forEach(b=>b.onclick=()=>{const s=subscriptionCandidates().find(x=>x.key===b.dataset.subAdd);if(!s)return;state.planned.push({id:uid(),name:s.name,amount:s.amount,category:s.category||'other',day:Math.min(30,daysElapsed()),paid:true});save();render();toast('Pridané medzi plánované platby.')});$$('[data-sub-dismiss]').forEach(b=>b.onclick=()=>{state.subscriptionDismissed=[...(state.subscriptionDismissed||[]),b.dataset.subDismiss];save();renderSettings()})}
+// Lokálne rozpočtové tipy: nevolajú externý AI servis a nemenia žiadne platby.
+// Každá navrhovaná úspora je výslovne hypotetická (nie už ušetrená suma).
+function tipCheapRecipe(){
+  const food=cat('food');
+  const daily=Math.max(0,(Number(food?.limit||0)-catSpent('food'))/daysLeft());
+  const candidates=RECIPES.map((r,i)=>({...r,index:i})).filter(r=>!r.chicken).sort((a,b)=>a.c-b.c);
+  return candidates.find(r=>daily>0&&r.c<=daily)||candidates[0];
+}
+function personalTips(){
+  const tips=[];
+  const cheap=tipCheapRecipe();
+  const savings=Number(state.settings.savings||0);
+  const free=Number(state.settings.budget)-savings-totalSpent()-pendingPlanned();
+  const daily=Math.max(0,free)/daysLeft();
+  const food=cat('food');
+  const foodRemaining=Number(food?.limit||0)-catSpent('food');
+  const foodDaily=Math.max(0,foodRemaining)/daysLeft();
+  const mealAction={kind:'recipe',recipeIndex:cheap.index,label:`Pozrieť recept za ~${fmt(cheap.c)}`};
+  const foodCase=(reason)=>({
+    icon:'🍝',title:reason,
+    body:`${cheap.n} stojí odhadom ${fmt(cheap.c)} za porciu. Nemusíš mať každý deň kuracie.`,
+    alternative:`Skús dnes pripraviť ${cheap.n.toLowerCase()} namiesto objednávania.`,
+    note:'Odhad ceny surovín na 1 porciu; nie je to potvrdená úspora.',action:mealAction
+  });
+
+  const uncat=uncategorizedTx();
+  if(uncat.length){
+    tips.push({icon:'🧾',title:`${uncat.length} ${uncat.length===1?'platba potrebuje':'platby potrebujú'} skontrolovať`,
+      body:'Niektoré transakcie sa nepodarilo bezpečne zaradiť. Rozpočet na jednotlivé kategórie preto nemusí byť presný.',
+      alternative:'Skontroluj obchodníka a vyber správnu kategóriu; nabudúce si môžeš pravidlo zapamätať.',
+      note:'Sumy sú už zahrnuté v celkovom rozpočte.', action:{kind:'review',label:'Skontrolovať platby'}});
+  }
+  if(free<0){
+    tips.push({icon:'⚠️',title:'Rozpočet je už nad plánovaným limitom',
+      body:`Po výdavkoch, úsporách a plánovaných platbách vychádza ${fmt(free)}.`,
+      alternative:`Vyber si na najbližšie jedlo ${cheap.n.toLowerCase()} (asi ${fmt(cheap.c)} za porciu) a prekontroluj plánované platby.`,
+      note:'Cena domáceho jedla je orientačná.',action:mealAction});
+  } else if(daily<8){
+    tips.push({icon:'🪙',title:`Na deň ti bezpečne zostáva ${fmt(daily)}`,
+      body:'Tento limit už odpočítava cieľ úspor aj čakajúce plánované platby.',
+      alternative:`Jednoduchá domáca možnosť: ${cheap.n} za približne ${fmt(cheap.c)}.`,
+      note:'Denný limit je orientačný; počíta sa z aktuálneho obdobia.',action:mealAction});
+  }
+
+  const wolt=txPeriod().filter(t=>/wolt/i.test(String(t.merchant||''))&&Number(t.amount)>0);
+  if(wolt.length){
+    const last=wolt.slice().sort((a,b)=>b.ts-a.ts)[0];
+    const average=wolt.reduce((sum,t)=>sum+Number(t.amount||0),0)/wolt.length;
+    const diff=average-cheap.c;
+    if(diff>0.25){
+      tips.push({icon:'🍽️',title:'Dnes môžeš skúsiť obed bez Woltu',
+        body:`Podľa ${wolt.length} ${wolt.length===1?'zaznamenanej Wolt platby':'zaznamenaných Wolt platieb'} vychádza priemer ${fmt(average)} za objednávku.`,
+        alternative:`${cheap.n} stojí odhadom ${fmt(cheap.c)}. Pri jednej budúcej objednávke za priemernú cenu by rozdiel bol približne ${fmt(diff)}.`,
+        note:'Hypotetické porovnanie; už zaplatený Wolt sa nevracia ani neodpočítava druhýkrát.',action:mealAction});
+    }
+  } else {
+    const example=6, diff=example-cheap.c;
+    if(diff>0){
+      tips.push({icon:'🍝',title:'Objednať obed alebo navariť?',
+        body:`Pri modelovom obede za ${fmt(example)} môžeš porovnať cenu domáceho jedla.`,
+        alternative:`${cheap.n} za približne ${fmt(cheap.c)}. Rozdiel pri takejto jednej objednávke by bol asi ${fmt(diff)}.`,
+        note:'Modelový príklad, nie zistená ani skutočne ušetrená suma.',action:mealAction});
+    }
+  }
+
+  if(food && foodRemaining>0 && foodDaily < 5){
+    tips.push({icon:'🍕',title:`Na jedlo zostáva ${fmt(foodDaily)} denne`,
+      body:`Do konca obdobia máš v kategórii Jedlo ešte ${fmt(foodRemaining)}.`,
+      alternative:foodDaily>=cheap.c?`${cheap.n} za ~${fmt(cheap.c)} sa do dnešného limitu na jednu porciu zmestí.`:`Najlacnejší tip je ${cheap.n} (~${fmt(cheap.c)}), ale aj ten prekračuje dnešný denný priemer.`,
+      note:'Rozpočet na jedlo zahŕňa aj platby kartou, napríklad Wolt.',action:mealAction});
+  }
+
+  const fuel=cat('fuel');
+  if(fuel && Number(fuel.limit)>0 && catSpent('fuel')/Number(fuel.limit)>=.75){
+    tips.push({icon:'⛽',title:'Pozor na rozpočet na tankovanie',
+      body:`Na tankovanie zostáva ${fmt(Number(fuel.limit)-catSpent('fuel'))} z nastavených ${fmt(fuel.limit)}.`,
+      alternative:'Ak to ide, spoj krátke jazdy do jednej cesty alebo časť vybav pešo.',
+      note:'Je to odporúčanie, nie garantovaná úspora paliva.',action:{kind:'category',label:'Pozrieť kategórie'}});
+  }
+
+  const pending=pendingPlanned();
+  if(pending>0){
+    tips.push({icon:'📅',title:`Nezabudni na plánované platby ${fmt(pending)}`,
+      body:'Peniaze na tieto platby sú už rezervované v bezpečnom dennom limite.',
+      alternative:'Pozri si plánované platby a označ iba tie, ktoré už naozaj odišli.',
+      note:'Plánované platby nevytvárajú samostatný bankový výdavok.',action:{kind:'planned',label:'Pozrieť plánované platby'}});
+  }
+
+  if(savings>0){
+    tips.push({icon:'🎯',title:`Cieľ úspor: ${fmt(savings)}`,
+      body:`Bezpečný denný limit ${fmt(daily)} už tento cieľ nepočíta medzi peniaze na míňanie.`,
+      alternative:'Pri ďalšej výplate môžeš upraviť cieľ aj jednotlivé kategórie podľa aktuálne voľnej sumy.',
+      note:'Cieľ úspor je plán, nie potvrdený bankový prevod.',action:{kind:'settings',label:'Upraviť rozpočet'}});
+  }
+
+  tips.push(foodCase('Čo si dnes pripraviť namiesto objednávky?'));
+  return tips;
+}
+function renderSmartTip(){
+  const tips=personalTips(),index=((smartTipIndex%tips.length)+tips.length)%tips.length,tip=tips[index];
+  $('#smartTipEmoji').textContent=tip.icon;
+  $('#smartTipTitle').textContent=tip.title;
+  $('#smartTipText').textContent=tip.body;
+  $('#smartTipAlternative').textContent=tip.alternative;
+  $('#smartTipFootnote').textContent=tip.note;
+  $('#smartTipActionBtn').textContent=tip.action.label+' →';
+  $('#smartTipActionBtn').onclick=()=>{
+    if(tip.action.kind==='recipe'){
+      featuredRecipeIndex=tip.action.recipeIndex;recipeOffset=0;
+      // Ukazujeme presne recept uvedený v tipe, bez ohľadu na zvolený filter.
+      navigate('food');
+      $('#dinnerName')?.scrollIntoView({block:'center',behavior:'smooth'});
+    } else if(tip.action.kind==='review'){
+      currentFilter='all';currentSearch='';currentDayFilter='';$('#txSearch').value='';navigate('expenses');
+      const first=uncategorizedTx()[0];if(first)setTimeout(()=>openEditTx(first.id),150);
+    } else if(tip.action.kind==='category'){
+      navigate('overview');$('#categoryList')?.scrollIntoView({behavior:'smooth',block:'start'});
+    } else if(tip.action.kind==='planned'){
+      navigate('overview');$('#plannedOverview')?.scrollIntoView({behavior:'smooth',block:'start'});
+    } else if(tip.action.kind==='settings'){
+      navigate('settings');
+    }
+  };
+  $('#smartTipCard').dataset.tipIndex=String(index);
+}
 function renderOverview(){
+  renderSmartTip();
   const budget=state.settings.budget,spent=totalSpent(),planned=pendingPlanned(),remaining=budget-spent,realFree=budget-state.settings.savings-spent-planned;
   const autoHint=$('#autoBudgetHint');if(autoHint)autoHint.textContent=state.settings.autoAllocate?'Limity kategórií sa prispôsobujú rozpočtu':'Limity kategórií sú nastavené ručne';
   $('#todayLabel').textContent=`Dnes ${new Intl.DateTimeFormat('sk-SK',{day:'numeric',month:'long',year:'numeric'}).format(new Date())}`;
@@ -323,7 +449,16 @@ function mealSeed(offset=0){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.
 function recipeTags(r){const s=(r.n+' '+r.ing.join(' ')).toLowerCase(),tags=[];if(/cestovin|penne|špaget|mac|gnocchi|kolien/.test(s))tags.push('pasta');if(/pizza|baget/.test(s))tags.push('pizza');if(/syr|syrov|mozz|eidam|gouda|cheddar|parmez/.test(s))tags.push('cheese');if(/zemiak|hranol/.test(s))tags.push('potato');if(r.chicken)tags.push('chicken');if(/chips|nachos|toast|quesadilla|snack/.test(s))tags.push('snack');if(r.c<=2.5)tags.push('cheap');if(r.t<=20)tags.push('quick');return tags}
 function recipePool(){const mood=state.settings.foodMood||'random';if(mood==='random')return RECIPES;const p=RECIPES.filter(r=>recipeTags(r).includes(mood));return p.length?p:RECIPES}
 function seededRecipe(seed,salt=0){const pool=recipePool();let x=(seed*9301+49297+salt*233+mealVariant*7919)%233280;if(x<0)x+=233280;return pool[Math.floor((x/233280)*pool.length)%pool.length]}
-function getMealPair(offset=recipeOffset){const seed=mealSeed(offset),lunch=seededRecipe(seed,3);let dinner=seededRecipe(seed,11),tries=0,pool=recipePool();while((dinner===lunch||(lunch.chicken&&dinner.chicken))&&tries<pool.length){dinner=pool[(pool.indexOf(dinner)+5+mealVariant)%pool.length];tries++}return {lunch,dinner}}
+function getMealPair(offset=recipeOffset){
+  const seed=mealSeed(offset),lunch=seededRecipe(seed,3);
+  let dinner=seededRecipe(seed,11),tries=0,pool=recipePool();
+  while((dinner===lunch||(lunch.chicken&&dinner.chicken))&&tries<pool.length){dinner=pool[(pool.indexOf(dinner)+5+mealVariant)%pool.length];tries++}
+  if(offset===0&&featuredRecipeIndex>=0){
+    dinner=RECIPES[featuredRecipeIndex]||dinner;
+    if(lunch===dinner)return {lunch:pool.find(r=>r!==dinner)||lunch,dinner};
+  }
+  return {lunch,dinner};
+}
 function shoppingKey(){return `${periodKey()}|meal-${mealSeed(recipeOffset)}`}
 function combinedIngredients(lunch,dinner){const all=[...lunch.ing.map(x=>`Obed: ${x}`),...dinner.ing.map(x=>`Večera: ${x}`)];return all}
 function renderShopping(lunch,dinner){const key=shoppingKey();if(!state.shopping[key])state.shopping[key]={};const items=combinedIngredients(lunch,dinner);$('#shoppingList').innerHTML=items.map((x,i)=>`<label class="shopping-item ${state.shopping[key][i]?'checked':''}"><input type="checkbox" data-shop="${i}" ${state.shopping[key][i]?'checked':''}><span>${esc(x)}</span></label>`).join('');$$('[data-shop]').forEach(ch=>ch.onchange=()=>{state.shopping[key][ch.dataset.shop]=ch.checked;save();renderShopping(lunch,dinner)})}
@@ -376,7 +511,7 @@ $('#saveTxBtn').onclick=e=>{e.preventDefault();const a=parseNum($('#amountInput'
 $('#txCategoryFilter').onchange=e=>{currentFilter=e.target.value;renderExpenses()};$('#txSearch').oninput=e=>{currentSearch=e.target.value.trim();renderExpenses()};
 $('#editTxSave').onclick=e=>{e.preventDefault();const t=state.transactions.find(x=>x.id===currentEditTxId);if(!t)return;const amount=parseNum($('#editTxAmount').value),merchant=$('#editTxMerchant').value.trim(),category=$('#editTxCategory').value;if(!amount||!merchant)return;t.amount=amount;t.merchant=merchant;t.category=category;t.needsReview=false;if($('#editTxRemember').checked)state.merchantRules[merchantKey(merchant)]=category;save();$('#editTxDialog').close();render();toast($('#editTxRemember').checked?'Opravené a pravidlo zapamätané.':'Transakcia opravená.')};
 $('#editTxDelete').onclick=()=>{if(currentEditTxId)deleteTx(currentEditTxId);$('#editTxDialog').close()};
-$('#prevMealDayBtn').onclick=()=>{recipeOffset--;renderFood()};$('#nextMealDayBtn').onclick=()=>{recipeOffset++;renderFood()};$('#cheaperDayBtn').onclick=findCheaperDay;$('#addLunchCostBtn').onclick=()=>{const r=getMealPair().lunch;addTx(r.c,`Domáci obed: ${r.n}`,'food','recept')};$('#addDinnerCostBtn').onclick=()=>{const r=getMealPair().dinner;addTx(r.c,`Domáca večera: ${r.n}`,'food','recept')};$('#resetShoppingBtn').onclick=()=>{state.shopping[shoppingKey()]={};save();renderFood()};
+$('#prevMealDayBtn').onclick=()=>{featuredRecipeIndex=-1;recipeOffset--;renderFood()};$('#nextMealDayBtn').onclick=()=>{featuredRecipeIndex=-1;recipeOffset++;renderFood()};$('#cheaperDayBtn').onclick=findCheaperDay;$('#addLunchCostBtn').onclick=()=>{const r=getMealPair().lunch;addTx(r.c,`Domáci obed: ${r.n}`,'food','recept')};$('#addDinnerCostBtn').onclick=()=>{const r=getMealPair().dinner;addTx(r.c,`Domáca večera: ${r.n}`,'food','recept')};$('#resetShoppingBtn').onclick=()=>{state.shopping[shoppingKey()]={};save();renderFood()};
 $('#makeTestEmailBtn').onclick=()=>{$('#emailText').value=testEmail();showParsed($('#emailText').value)};$('#testAndImportBtn').onclick=()=>{const t=testEmail();$('#emailText').value=t;showParsed(t,true)};$('#parseBtn').onclick=()=>showParsed($('#emailText').value.trim());
 $('#saveSyncBtn').onclick=()=>{state.settings.syncUrl=$('#syncUrlInput').value.trim();state.settings.syncKey=$('#syncKeyInput').value.trim();save();renderTatraSync();toast('Pripojenie uložené.')};$('#syncNowBtn').onclick=()=>syncTatraCloud(false);
 $('#saveMainSettingsBtn').onclick=()=>{
@@ -416,11 +551,12 @@ $('#confirmPaydayBtn').onclick=e=>{
   toast(plan?'Nová výplata: limity automaticky nastavené.':'Nové obdobie začalo.');
 };
 
+$('#nextSmartTipBtn').onclick=()=>{smartTipIndex++;renderSmartTip()};
 $('#overviewSyncBtn').onclick=()=>syncTatraCloud(false);
 $('#reviewUncategorizedBtn').onclick=()=>{currentFilter='all';currentDayFilter='';navigate('expenses');currentSearch='';$('#txSearch').value='';renderExpenses();setTimeout(()=>{const first=uncategorizedTx()[0];if(first)openEditTx(first.id)},120)};
 $('#clearExpenseDayFilter').onclick=()=>{currentDayFilter='';renderExpenses()};
-$$('[data-food-mood]').forEach(b=>b.onclick=()=>{state.settings.foodMood=b.dataset.foodMood;mealVariant=0;save();renderFood()});
-$('#randomMealBtn').onclick=()=>{mealVariant++;renderFood();toast('Nový tip na jedlo.')};
+$$('[data-food-mood]').forEach(b=>b.onclick=()=>{state.settings.foodMood=b.dataset.foodMood;mealVariant=0;featuredRecipeIndex=-1;save();renderFood()});
+$('#randomMealBtn').onclick=()=>{mealVariant++;featuredRecipeIndex=-1;renderFood();toast('Nový tip na jedlo.')};
 $('#addGoalBtn').onclick=()=>$('#goalDialog').showModal();
 $('#createGoalBtn').onclick=e=>{e.preventDefault();const name=$('#goalName').value.trim(),target=parseNum($('#goalTarget').value),saved=parseNum($('#goalSaved').value);if(!name||!target)return;state.goals.push({id:uid(),name,target,saved:Math.min(saved,target)});save();$('#goalDialog').close();$('#goalForm').reset();renderSettings();toast('Cieľ pridaný.')};
 $('#exportCsvBtn').onclick=exportCsv;$('#exportJsonBtn').onclick=exportJson;

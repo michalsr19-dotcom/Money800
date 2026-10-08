@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Money800" />
-  <link rel="manifest" href="manifest.webmanifest?v=16" />
-  <link rel="apple-touch-icon" href="icon-192.png?v=16" />
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="manifest" href="manifest.webmanifest?v=17" />
+  <link rel="apple-touch-icon" href="icon-192.png?v=17" />
+  <link rel="stylesheet" href="styles.css?v=17" />
   <title>Money800</title>
 </head>
 <body>
@@ -26,6 +26,24 @@
 
     <main>
       <section class="page active" data-page="overview">
+        <section class="smart-tip-card" id="smartTipCard" aria-live="polite">
+          <div class="smart-tip-top">
+            <span class="smart-tip-kicker">✨ Osobný tip</span>
+            <button type="button" class="smart-tip-next" id="nextSmartTipBtn" aria-label="Zobraziť ďalší tip">Ďalší tip <span aria-hidden="true">↻</span></button>
+          </div>
+          <div class="smart-tip-body">
+            <div class="smart-tip-emoji" id="smartTipEmoji" aria-hidden="true">💡</div>
+            <div class="smart-tip-copy">
+              <h2 id="smartTipTitle">Malé rozhodnutia, veľký rozdiel</h2>
+              <p id="smartTipText">Tipy sa prispôsobia rozpočtu a skutočným platbám.</p>
+            </div>
+          </div>
+          <div class="smart-tip-alternative"><span>Alternatíva</span><p id="smartTipAlternative">Pozri si lacnejší domáci recept.</p></div>
+          <div class="smart-tip-bottom">
+            <button type="button" class="smart-tip-action" id="smartTipActionBtn">Pozrieť recept <span aria-hidden="true">→</span></button>
+            <span class="smart-tip-footnote" id="smartTipFootnote">Ceny jedál sú orientačné.</span>
+          </div>
+        </section>
         <section class="hero-card">
           <div class="hero-row">
             <div>
@@ -235,7 +253,7 @@
       </section>
 
       <section class="page" data-page="settings">
-        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.4</span></div>
+        <div class="page-title-row"><div><h2>Nastavenia</h2><p>Rozpočet, limity, plánované platby a reset po výplate.</p></div><span class="version-pill">v5.5</span></div>
 
         <section class="settings-card">
           <div class="settings-grid settings-grid-two">
@@ -351,6 +369,6 @@
     <label>Chcem odložiť (€)<input id="paydaySavingsInput" inputmode="decimal" /></label>
     <menu><button class="secondary" value="cancel">Zrušiť</button><button class="primary" type="button" id="confirmPaydayBtn">Začať obdobie</button></menu>
   </form></dialog>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
