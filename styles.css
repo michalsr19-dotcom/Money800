@@ -161,3 +161,30 @@ dialog{border:0;background:transparent;padding:0;width:min(94vw,580px)}dialog::b
 
 /* v5.8: Jediné rýchle tlačidlo namiesto troch rozťahaných boxov na úvode */
 .quick-actions{grid-template-columns:1fr!important}.compact-add{display:flex;align-items:center;gap:12px;padding:13px 17px;border-radius:17px}.compact-add span{font-size:24px}.compact-add b{margin-top:0;font-size:14px}.compact-add small{margin-top:0;margin-left:auto;font-size:11px;text-align:right}.page[data-page="overview"] .quick-actions{margin-top:14px}@media(max-width:430px){.compact-add small{display:none}}
+
+/* Money800 5.9: prehľadné rozdelenie, ručné finančné zdroje */
+.manual-balance-card{border:1px solid rgba(93,197,227,.23);border-radius:20px;padding:14px 16px;margin-top:14px;background:linear-gradient(130deg,rgba(34,59,92,.78),rgba(21,31,55,.8))}
+.manual-balance-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.manual-balance-top>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+.manual-balance-top span{color:#b4caeb;font-size:12px;font-weight:800}
+.manual-balance-top strong{font-size:25px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.manual-balance-top small{font-size:11px;color:var(--muted);line-height:1.4}
+.manual-balance-breakdown{font-size:12px;color:#b7dbe1;border-top:1px solid rgba(255,255,255,.09);padding-top:10px;margin:12px 0 0;line-height:1.5}
+.reserve-status{margin-top:12px;color:#c3d1e9;font-size:12px;line-height:1.5}
+.home-expand-section{margin-top:14px;background:rgba(21,31,56,.56);border:1px solid rgba(255,255,255,.09);border-radius:20px;overflow:hidden}
+.home-expand-section>summary{cursor:pointer;list-style:none;padding:16px 17px;font-weight:850;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.home-expand-section>summary::-webkit-details-marker{display:none}
+.home-expand-section>summary:after{content:'⌄';color:var(--muted);font-size:18px}
+.home-expand-section[open]>summary:after{content:'⌃'}
+.home-expand-section>.section{margin:0;padding:0 14px 16px}
+.home-expand-section>.section>.section-head{display:flex;flex-wrap:wrap;gap:8px}
+.home-expand-section>.section>.section-head h2{font-size:16px}
+.home-expand-section .category-list{gap:8px}
+.home-expand-section .category{padding:12px;border-radius:16px}
+.home-expand-section .category-name{font-size:14px}
+.home-expand-section .cat-icon{width:38px;height:38px;border-radius:12px;font-size:19px}
+.home-expand-section .category-advice{font-size:11px}
+.quick-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.quick-actions .action-card{width:100%;min-width:0;text-align:left;line-height:1.4}
+.quick-actions .action-card small{display:block;font-size:11px}
+@media(max-width:359px){.quick-actions{grid-template-columns:1fr}.manual-balance-top strong{font-size:21px}}

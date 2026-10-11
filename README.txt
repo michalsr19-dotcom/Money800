@@ -1,25 +1,18 @@
-Money800 v5.8 – prehľadnejší dizajn a návrhy na úspory
+Money800 v5.9 — prehľadný Prehľad, ručný zostatok, rezervované platby
 
 ČO JE NOVÉ
-- Spodné menu: Prehľad / Výdavky / Tipy / Jedlo / Viac.
-- Prehľad teraz ukazuje len hlavné sumy, denný limit, tip, Tatra Sync, bankový zostatok a pridanie výdavku.
-- Kategórie, odhad, kalendár a štatistiky: Viac → Prehľady a kategórie.
-- Zostatok z posledného B-mailu: Prehľad aj Viac → Tatra banka.
-- Zostatok z banky môžeš po výslovnom potvrdení používať ako hornú hranicu položky „Reálne voľné“ (Viac → Tatra banka → Použiť banku pre voľné).
-- „Dorovnať kontrolu“ znamená dorovnať referenčný bankový zostatok, NIE mesačný rozpočet.
-- Tipy a úpravy: upozornia na zvýšené tempo míňania, ponúknu odloženie nákupov a dobrovoľný presun NEVYUŽITÝCH peňazí z kategórií Zábava/Auto rezerva a pod. do preťaženej kategórie.
-- Nič sa v rozpočte nepresúva bez potvrdenia. Presuny nevytvárajú nové peniaze a negarantujú dodržanie celkového rozpočtu.
-- Pridávanie vlastných kategórií priamo pri ručných platbách zostáva.
-- Vysvetlenie odhadu zostáva v Prehľadoch.
+- Kategórie a kalendár sú znovu na úvodnom Prehľade v rozbaľovacích sekciách.
+- Ručný zostatok na účte: zadávaš reálnu sumu, appka doplní doteraz evidované výdavky do rozpočtového rámca, aby ich neodrátala znova.
+- Reálne voľné = odhad zostatku - cieľ úspor - nezaplatené aktívne rezervácie.
+- Nové prírastky výdavkov po ručnom dorovnaní znižujú zobrazený odhad zostatku.
+- Bankové zostatky z B-mailov sa ignorujú; Tatra transakcie sa naďalej sťahujú rovnakým Sync kľúčom a URL.
+- Rezerváciu vytvoríš priamo na domovskej obrazovke. Novú kategóriu môžeš vytvoriť z formulára rezervácie.
+- Rezervácie znižujú voľné peniaze iba pokiaľ sú aktívne a neoznačené ako zaplatené.
+- Po označení zaplatené je potrebné skutočnú platbu evidovať medzi výdavkami (napr. cez Tatra Sync).
 
-AKTUALIZÁCIA
-1. Rozbaľ ZIP.
-2. Do existujúceho Money800 GitHub repozitára nahraj všetky súbory z ZIPu (index.html, app.js, styles.css, sw.js, manifest.webmanifest a ikony).
-3. Nahraď staré súbory, Commit changes.
-4. Pôvodnú Money800 ikonu na iPhone nemaž! Lokálne dáta a kľúč zostávajú pri rovnakej adrese aplikácie.
-5. Apps Script, Google Sheet a Sync kľúč nemeníš.
+NASADENIE
+Rozbaľ obsah ZIPu a nahraj index.html, app.js, styles.css, sw.js, manifest.webmanifest a obe ikony do GitHub repo Money800. Prepíš staré súbory. Nemaž PWA ikonu ani úložisko Safari.
+Tatra Apps Script, Google Sheet a Sync kľúč NEUPRAVUJ.
 
 BEZPEČNOSŤ
-- Do ZIPu nie je vložený tvoj Sync kľúč ani bankové údaje.
-- Zostatok z B-mailu nie je živé bankové API a môže byť oneskorený.
-- Ak chceš meniť výšku celkového mesačného rozpočtu, urob to zvlášť v Nastaveniach.
+Údaje a sync kľúč zostávajú v lokálnom úložisku PWA. Nepublikuj Sync kľúč na GitHube.
