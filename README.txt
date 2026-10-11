@@ -1,18 +1,9 @@
-Money800 v5.9 — prehľadný Prehľad, ručný zostatok, rezervované platby
+Money800 v5.6.1 – opravená pôvodná verzia 5.6.
 
-ČO JE NOVÉ
-- Kategórie a kalendár sú znovu na úvodnom Prehľade v rozbaľovacích sekciách.
-- Ručný zostatok na účte: zadávaš reálnu sumu, appka doplní doteraz evidované výdavky do rozpočtového rámca, aby ich neodrátala znova.
-- Reálne voľné = odhad zostatku - cieľ úspor - nezaplatené aktívne rezervácie.
-- Nové prírastky výdavkov po ručnom dorovnaní znižujú zobrazený odhad zostatku.
-- Bankové zostatky z B-mailov sa ignorujú; Tatra transakcie sa naďalej sťahujú rovnakým Sync kľúčom a URL.
-- Rezerváciu vytvoríš priamo na domovskej obrazovke. Novú kategóriu môžeš vytvoriť z formulára rezervácie.
-- Rezervácie znižujú voľné peniaze iba pokiaľ sú aktívne a neoznačené ako zaplatené.
-- Po označení zaplatené je potrebné skutočnú platbu evidovať medzi výdavkami (napr. cez Tatra Sync).
+Čo je nové: Rezervácia platby priamo v Prehľade; vytvorenie novej kategórie pri rezervácii a kontrole Tatra platby; ručná úprava celkového rozpočtu s automatickým prepočtom kategórií; jednoduchá kontrola nezaradenej platby s opraveným Uložiť/Zrušiť.
 
-NASADENIE
-Rozbaľ obsah ZIPu a nahraj index.html, app.js, styles.css, sw.js, manifest.webmanifest a obe ikony do GitHub repo Money800. Prepíš staré súbory. Nemaž PWA ikonu ani úložisko Safari.
-Tatra Apps Script, Google Sheet a Sync kľúč NEUPRAVUJ.
+Dôležité: Bankový B-mail zostatok sa NEPOUŽÍVA. Tatra transakcie sa synchronizujú tak ako vo v5.6. Žiadna zmena Apps Script/Google Sheet/Sync kľúča.
 
-BEZPEČNOSŤ
-Údaje a sync kľúč zostávajú v lokálnom úložisku PWA. Nepublikuj Sync kľúč na GitHube.
+Ochrana údajov: rovnaký localStorage kľúč money800, ikonu na iPhone neodstraňovať. Nahrať všetky súbory ZIPu do koreňa GitHub Pages a nahradiť existujúce.
+
+Po aktualizácii skontrolovať ručne rozpočet, ak bola predtým v5.9 zapnutá funkcia ručného bankového zostatku: v5.6.1 sa už nesleduje, zostáva však posledná uložená číselná suma celkového rozpočtu.
